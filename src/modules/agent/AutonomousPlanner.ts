@@ -54,7 +54,7 @@ export class AutonomousPlanner {
 
       const stepMsgId = `msg-step-${Date.now()}-${iteration}`;
 
-      // Notify UI that AI is thinking & reasoning
+      // 1. Notify UI that LLM reasoning is starting (This activates the Thinking Indicator in UI)
       onStepUpdate({
         id: stepMsgId,
         role: 'assistant',
@@ -64,7 +64,7 @@ export class AutonomousPlanner {
 
       const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns);
 
-      // Real-time Character Streaming Simulation to UI
+      // 2. Real-time Character Streaming into the SAME message ID
       const fullReplyText = turnResponse.reply || 'Memproses instruksi...';
       let currentText = '';
 
@@ -109,7 +109,7 @@ export class AutonomousPlanner {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
-      onStepUpdate(finalStepMsg);
+      onStepUpdate(finalStepMsg, { isExecutingTool: false });
 
       if (!turnResponse.tool_call || turnResponse.tool_call.name === 'finish_task') {
         break;
@@ -118,7 +118,7 @@ export class AutonomousPlanner {
       const toolName = turnResponse.tool_call.name;
       const params = turnResponse.tool_call.parameters;
 
-      // Notify UI that AI is executing tool with loading spinner
+      // 3. Notify UI that tool execution is starting
       onStepUpdate(finalStepMsg, { isExecutingTool: true, activeToolName: toolName });
 
       // Human Safety Gate Check
@@ -162,7 +162,7 @@ export class AutonomousPlanner {
         content: `Hasil eksekusi tool ${toolName}: ${JSON.stringify(toolRes.data || toolRes.error || 'Success')}`,
       });
 
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 300));
     }
   }
 

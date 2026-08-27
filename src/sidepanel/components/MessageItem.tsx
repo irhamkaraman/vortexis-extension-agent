@@ -11,6 +11,11 @@ interface MessageItemProps {
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
+  // Do not render empty AI message container if it's currently streaming in ThinkingIndicator
+  if (!isUser && !message.content && !message.toolCall && !message.thoughtProcess) {
+    return null;
+  }
+
   return (
     <div className={`flex flex-col my-2 w-full max-w-full ${isUser ? 'items-end' : 'items-start'}`}>
       <div className="flex items-center gap-1.5 mb-1 font-mono text-[9px] text-neutral-500">
