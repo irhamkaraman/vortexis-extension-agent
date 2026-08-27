@@ -17,10 +17,18 @@ const autonomousPlanner = new AutonomousPlanner(toolRegistry, selfHealingDriver)
 export const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState<{
+    warningMessage: string;
+    onApprove: () => void;
+    onReject: () => void;
+  } | null>(null);
+
   const stopSignalRef = useRef<boolean>(false);
 
   const handleSendMessage = async (text: string) => {
     stopSignalRef.current = false;
+    setPendingConfirmation(null);
+
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -47,23 +55,39 @@ export const App: React.FC = () => {
           });
         },
         () => stopSignalRef.current,
-        12 // Max iterations safeguard
+        (warningMessage, onApprove, onReject) => {
+          setPendingConfirmation({
+            warningMessage,
+            onApprove: () => {
+              setPendingConfirmation(null);
+              onApprove();
+            },
+            onReject: () => {
+              setPendingConfirmation(null);
+              onReject();
+            },
+          });
+        },
+        15 // Max iterations safeguard
       );
     } catch (err: any) {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: `⚠️ Kendala Sistem Super-Agent: ${err.message || String(err)}`,
+        content: `⚠️ Kendala Sistem Ultra-Agent: ${err.message || String(err)}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsThinking(false);
+      setPendingConfirmation(null);
     }
   };
 
   const handleTriggerQuickTool = async (toolName: ToolName) => {
     stopSignalRef.current = false;
+    setPendingConfirmation(null);
+
     const toolCall = { name: toolName, parameters: {} };
     const userMsg: ChatMessage = {
       id: `msg-quick-${Date.now()}`,
@@ -103,11 +127,13 @@ export const App: React.FC = () => {
     stopSignalRef.current = true;
     setMessages([]);
     setIsThinking(false);
+    setPendingConfirmation(null);
   };
 
   const handleStop = () => {
     stopSignalRef.current = true;
     setIsThinking(false);
+    setPendingConfirmation(null);
   };
 
   return (
@@ -117,6 +143,7 @@ export const App: React.FC = () => {
         isThinking={isThinking}
         onClearChat={handleClearChat}
         onEmergencyStop={handleStop}
+        pendingConfirmation={pendingConfirmation}
       />
       <ChatInput
         onSendMessage={handleSendMessage}

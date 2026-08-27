@@ -34,6 +34,42 @@ export class BackgroundToolExecutor {
     });
   }
 
+  public async doubleClickCoordinate(x: number, y: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'DOUBLE_CLICK_COORDINATE',
+      payload: { x, y, selector },
+    });
+  }
+
+  public async dragAndDrop(startX: number, startY: number, endX: number, endY: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'DRAG_AND_DROP',
+      payload: { startX, startY, endX, endY },
+    });
+  }
+
+  public async sendHotkeys(keys: string[], tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'SEND_HOTKEYS',
+      payload: { keys },
+    });
+  }
+
   public async typeWithDelay(text: string, x?: number, y?: number, selector?: string, waitMs?: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
@@ -70,6 +106,18 @@ export class BackgroundToolExecutor {
     });
   }
 
+  public async inspectCanvasLayers(selector?: string, tabId?: number): Promise<{ success: boolean; result?: any; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'INSPECT_CANVAS_LAYERS',
+      payload: { selector },
+    });
+  }
+
   public async captureAndInspectVision(): Promise<string> {
     return new Promise((resolve, reject) => {
       chrome.tabs.captureVisibleTab(chrome.windows.WINDOW_ID_CURRENT, { format: 'png' }, (dataUrl) => {
@@ -93,6 +141,17 @@ export class BackgroundToolExecutor {
     return await this.sendMessageToTab(targetTabId, {
       type: 'EXTRACT_STRUCTURED_DATA',
     });
+  }
+
+  public async getActiveTabDomain(): Promise<string> {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs[0]?.url) return 'default';
+    try {
+      const url = new URL(tabs[0].url);
+      return url.hostname;
+    } catch {
+      return 'default';
+    }
   }
 
   private async getActiveTabId(): Promise<number | undefined> {

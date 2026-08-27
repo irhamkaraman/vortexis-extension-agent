@@ -1,4 +1,5 @@
 import { IPCMessage } from '../core/types/messages';
+import { PointerSimulator } from '../modules/canvas-driver/PointerSimulator';
 import { CoordinateDriver } from '../modules/dom-driver/CoordinateDriver';
 
 console.log('[VORTEXIS] Content Script loaded.');
@@ -14,6 +15,29 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
 
       case 'CLICK_COORDINATE': {
         const res = CoordinateDriver.clickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
+        sendResponse(res);
+        break;
+      }
+
+      case 'DOUBLE_CLICK_COORDINATE': {
+        const res = PointerSimulator.doubleClickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
+        sendResponse(res);
+        break;
+      }
+
+      case 'DRAG_AND_DROP': {
+        const res = PointerSimulator.dragAndDrop(
+          message.payload.startX,
+          message.payload.startY,
+          message.payload.endX,
+          message.payload.endY
+        );
+        sendResponse(res);
+        break;
+      }
+
+      case 'SEND_HOTKEYS': {
+        const res = PointerSimulator.sendHotkeys(message.payload.keys);
         sendResponse(res);
         break;
       }
@@ -41,6 +65,12 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
           sendResponse(res);
         });
         return true;
+      }
+
+      case 'INSPECT_CANVAS_LAYERS': {
+        const res = PointerSimulator.inspectCanvasLayers(message.payload.selector);
+        sendResponse(res);
+        break;
       }
 
       case 'EXTRACT_STRUCTURED_DATA': {

@@ -1,4 +1,4 @@
-import { SuperAgentResponseFormat, ToolName } from '../../core/types/agent';
+import { ToolName } from '../../core/types/agent';
 
 export interface ActionStepSchema {
   id?: string;
@@ -26,7 +26,7 @@ export interface SenseNovaResponseFormat {
 }
 
 export class ActionParser {
-  public static parseSuperAgentResponse(rawResponse: string): SuperAgentResponseFormat {
+  public static parseSuperAgentResponse(rawResponse: string): any {
     const cleanedJson = this.extractCleanJson(rawResponse);
 
     try {
@@ -38,6 +38,8 @@ export class ActionParser {
           current_observation: 'Parsing fallback text response',
           evaluation: 'Direct response',
           remaining_goal: 'Complete turn',
+          is_dangerous_action: false,
+          requires_confirmation: false,
         },
         plan_status: {
           current_step: 1,
@@ -95,15 +97,17 @@ export class ActionParser {
     return cleaned;
   }
 
-  private static validateSuperAgentFormat(obj: any): SuperAgentResponseFormat {
+  private static validateSuperAgentFormat(obj: any): any {
     if (typeof obj !== 'object' || obj === null) {
       throw new Error('Parsed LLM response is not an object.');
     }
 
     const thought_process = {
-      current_observation: String(obj.thought_process?.current_observation || 'Observing DOM state'),
-      evaluation: String(obj.thought_process?.evaluation || 'Evaluating step status'),
+      current_observation: String(obj.thought_process?.current_observation || 'Observing state'),
+      evaluation: String(obj.thought_process?.evaluation || 'Evaluating step'),
       remaining_goal: String(obj.thought_process?.remaining_goal || 'Processing goal'),
+      is_dangerous_action: Boolean(obj.thought_process?.is_dangerous_action ?? false),
+      requires_confirmation: Boolean(obj.thought_process?.requires_confirmation ?? false),
     };
 
     const plan_status = {
@@ -117,11 +121,17 @@ export class ActionParser {
     const validTools = new Set([
       'scan_interactive_tree',
       'click_coordinate',
+      'double_click_coordinate',
+      'drag_and_drop_element',
+      'trigger_keyboard_shortcut',
       'type_with_delay',
       'scroll_and_find',
       'wait_for_condition',
+      'inspect_canvas_layers',
       'capture_and_inspect_vision',
       'extract_structured_data',
+      'request_user_confirmation',
+      'save_action_macro',
       'finish_task',
     ]);
 

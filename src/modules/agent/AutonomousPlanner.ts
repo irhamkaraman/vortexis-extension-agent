@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { ChatMessage, SuperAgentResponseFormat } from '../../core/types/agent';
+import { PatternCacheStore } from '../cache/PatternCacheStore';
 import { ActionParser } from './ActionParser';
 import { SelfHealingDriver } from './SelfHealingDriver';
 import { ToolRegistry } from './ToolRegistry';
@@ -28,8 +29,36 @@ export class AutonomousPlanner {
     historyMessages: ChatMessage[],
     onStepUpdate: (message: ChatMessage) => void,
     shouldStop: () => boolean,
-    maxIterations: number = 10
+    onRequireApproval?: (actionDesc: string, onApprove: () => void, onReject: () => void) => void,
+    maxIterations: number = 15
   ): Promise<void> {
+    const domain = await this.toolRegistry.getToolExecutor().getActiveTabDomain();
+
+    // Check Action-Pattern & Macro Caching (Zero-Token Fast Re-Execution)
+    const cachedMacro = await PatternCacheStore.getCachedMacro(domain, userGoal);
+    if (cachedMacro) {
+      onStepUpdate({
+        id: `msg-macro-${Date.now()}`,
+        role: 'assistant',
+        content: `⚡ Menggunakan Action Macro Cache lokal terdeteksi untuk [${userGoal}] (Zero-Token Fast Execution)...`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+
+      for (const cachedAction of cachedMacro.actions) {
+        if (shouldStop()) break;
+        await this.selfHealingDriver.executeWithSelfHealing(cachedAction.toolName, cachedAction.params);
+        await new Promise((r) => setTimeout(r, 600));
+      }
+
+      onStepUpdate({
+        id: `msg-macro-done-${Date.now()}`,
+        role: 'assistant',
+        content: '✅ Action Macro Cache berhasil dieksekusi sempurna!',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+      return;
+    }
+
     let iteration = 0;
     const conversationTurns: { role: 'user' | 'assistant' | 'system'; content: string }[] = [
       ...historyMessages.map((m) => ({
@@ -37,6 +66,8 @@ export class AutonomousPlanner {
         content: m.content || (m.toolCall ? `Executed action: ${m.toolCall.name}` : ''),
       })),
     ];
+
+    const successfulActions: { toolName: any; params: any }[] = [];
 
     while (iteration < maxIterations) {
       if (shouldStop()) {
@@ -51,7 +82,6 @@ export class AutonomousPlanner {
 
       iteration++;
 
-      // Phase 1 & 2: SenseNova Turn Reasoning (Planning & Perception)
       const turnResponse = await this.getSenseNovaDecision(conversationTurns);
 
       const stepMsg: ChatMessage = {
@@ -72,22 +102,56 @@ export class AutonomousPlanner {
 
       onStepUpdate(stepMsg);
 
-      // Evaluate Goal Completion
       if (turnResponse.is_goal_achieved || turnResponse.next_action?.tool_name === 'finish_task') {
+        // Save successful workflow to Macro Cache
+        if (successfulActions.length > 0) {
+          await PatternCacheStore.saveMacro(domain, userGoal, successfulActions);
+        }
         break;
       }
 
-      // Phase 3: Dynamic Tool Execution & Self-Healing
       if (turnResponse.next_action) {
         const toolName = turnResponse.next_action.tool_name;
         const params = turnResponse.next_action.params;
 
+        // Human-in-the-Loop Confirmation Pause Check
+        if (
+          turnResponse.thought_process?.requires_confirmation ||
+          toolName === 'request_user_confirmation'
+        ) {
+          const warning = params.warning_message || 'Aksi berisiko tinggi memerlukan persetujuan.';
+          await new Promise<void>((resolve, reject) => {
+            if (onRequireApproval) {
+              onRequireApproval(
+                warning,
+                () => resolve(),
+                () => reject(new Error('Aksi dibatalkan oleh pengguna.'))
+              );
+            } else {
+              resolve();
+            }
+          });
+        }
+
         const toolRes = await this.selfHealingDriver.executeWithSelfHealing(toolName, params);
+
+        if (toolRes.requiresApproval && onRequireApproval) {
+          await new Promise<void>((resolve, reject) => {
+            onRequireApproval(
+              toolRes.warningMessage || 'Persetujuan eksekusi diperlukan.',
+              () => resolve(),
+              () => reject(new Error('Aksi dibatalkan oleh pengguna.'))
+            );
+          });
+        }
 
         stepMsg.toolResult = toolRes;
         onStepUpdate({ ...stepMsg });
 
-        // Phase 4: Feedback turn & Goal State Reflection
+        if (toolRes.success) {
+          successfulActions.push({ toolName, params });
+        }
+
         conversationTurns.push({
           role: 'assistant',
           content: JSON.stringify(turnResponse),

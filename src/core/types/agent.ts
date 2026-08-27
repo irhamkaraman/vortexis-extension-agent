@@ -37,23 +37,39 @@ export type ToolName =
   | 'wait_for_condition'
   | 'capture_and_inspect_vision'
   | 'extract_structured_data'
+  | 'drag_and_drop_element'
+  | 'trigger_keyboard_shortcut'
+  | 'double_click_coordinate'
+  | 'inspect_canvas_layers'
+  | 'request_user_confirmation'
+  | 'save_action_macro'
   | 'finish_task';
 
 export interface SuperAgentToolParams {
   x?: number;
   y?: number;
+  startX?: number;
+  startY?: number;
+  endX?: number;
+  endY?: number;
+  keys?: string[];
   text?: string;
   direction?: 'up' | 'down';
   amount?: number;
   selector?: string;
   wait_ms?: number;
   query?: string;
+  warning_message?: string;
+  goalPattern?: string;
+  actionSequence?: any[];
 }
 
 export interface ThoughtProcess {
   current_observation: string;
-  evaluation: string;
-  remaining_goal: string;
+  evaluation?: string;
+  remaining_goal?: string;
+  is_dangerous_action?: boolean;
+  requires_confirmation?: boolean;
 }
 
 export interface PlanStatus {
@@ -80,6 +96,8 @@ export interface ToolResult {
   data?: any;
   error?: string;
   screenshotUrl?: string;
+  requiresApproval?: boolean;
+  warningMessage?: string;
 }
 
 export interface ChatMessage {
@@ -94,4 +112,20 @@ export interface ChatMessage {
   };
   toolResult?: ToolResult;
   timestamp: string;
+}
+
+export interface DomainPermissionSetting {
+  domain: string;
+  mode: 'auto' | 'approval';
+}
+
+export interface ActionMacro {
+  id: string;
+  domain: string;
+  goalPattern: string;
+  actions: {
+    toolName: ToolName;
+    params: SuperAgentToolParams;
+  }[];
+  createdAt: string;
 }
