@@ -4,6 +4,7 @@ import { ChatMessage, TradeDetails } from '../core/types/agent';
 import { MessageItem } from './components/MessageItem';
 import { MinimalHeader } from './components/MinimalHeader';
 import { PermissionModal } from './components/PermissionModal';
+import { ThinkingIndicator } from './components/ThinkingIndicator';
 import { TradeApprovalCard } from './components/TradeApprovalCard';
 
 interface ChatPanelProps {
@@ -48,6 +49,10 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
     }
   }, []);
 
+  // Extract latest thought from active AI message or last assistant turn
+  const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant');
+  const latestThought = lastAssistantMsg?.thoughtProcess?.thought || lastAssistantMsg?.thoughtProcess?.current_observation;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-black text-neutral-200">
       {/* Minimal Header Bar */}
@@ -75,7 +80,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
 
       {/* Messages Stream Timeline */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 scrollbar-thin scrollbar-thumb-neutral-800">
-        {messages.length === 0 ? (
+        {messages.length === 0 && !isThinking ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-neutral-500 p-6 space-y-3 font-mono">
             <div className="w-10 h-10 rounded border border-neutral-800 bg-neutral-950 flex items-center justify-center text-neutral-400">
               <Terminal className="w-5 h-5" strokeWidth={1.5} />
@@ -89,6 +94,14 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
           </div>
         ) : (
           messages.map((msg) => <MessageItem key={msg.id} message={msg} />)
+        )}
+
+        {/* Real-time Thinking Indicator Stream */}
+        {isThinking && (
+          <ThinkingIndicator
+            statusText="Menganalisis instruksi dan memindai halaman..."
+            thought={latestThought}
+          />
         )}
 
         <div ref={bottomRef} />

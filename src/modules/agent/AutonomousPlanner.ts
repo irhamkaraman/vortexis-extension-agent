@@ -52,12 +52,42 @@ export class AutonomousPlanner {
 
       iteration++;
 
+      const stepMsgId = `msg-step-${Date.now()}-${iteration}`;
       const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns);
 
-      const stepMsg: ChatMessage = {
-        id: `msg-step-${Date.now()}-${iteration}`,
+      // Real-time Text Streaming Simulation to UI
+      const fullReplyText = turnResponse.reply || 'Memproses instruksi...';
+      let currentText = '';
+
+      for (let i = 0; i < fullReplyText.length; i += 3) {
+        if (shouldStop()) break;
+        currentText = fullReplyText.substring(0, i + 3);
+
+        onStepUpdate({
+          id: stepMsgId,
+          role: 'assistant',
+          content: currentText,
+          thoughtProcess: {
+            thought: turnResponse.thought,
+            current_observation: turnResponse.thought,
+          },
+          toolCall: turnResponse.tool_call
+            ? {
+                name: turnResponse.tool_call.name,
+                parameters: turnResponse.tool_call.parameters,
+              }
+            : undefined,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        });
+
+        await new Promise((r) => setTimeout(r, 20)); // High-speed stream delay
+      }
+
+      // Final state emission for current turn
+      const finalStepMsg: ChatMessage = {
+        id: stepMsgId,
         role: 'assistant',
-        content: turnResponse.reply || 'Memproses instruksi...',
+        content: fullReplyText,
         thoughtProcess: {
           thought: turnResponse.thought,
           current_observation: turnResponse.thought,
@@ -71,7 +101,7 @@ export class AutonomousPlanner {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
-      onStepUpdate(stepMsg);
+      onStepUpdate(finalStepMsg);
 
       if (!turnResponse.tool_call || turnResponse.tool_call.name === 'finish_task') {
         break;
@@ -108,8 +138,8 @@ export class AutonomousPlanner {
         });
       }
 
-      stepMsg.toolResult = toolRes;
-      onStepUpdate({ ...stepMsg });
+      finalStepMsg.toolResult = toolRes;
+      onStepUpdate({ ...finalStepMsg });
 
       conversationTurns.push({
         role: 'assistant',
@@ -121,7 +151,7 @@ export class AutonomousPlanner {
         content: `Hasil eksekusi tool ${toolName}: ${JSON.stringify(toolRes.data || toolRes.error || 'Success')}`,
       });
 
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 400));
     }
   }
 
