@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { ActionParser, SenseNovaResponseFormat } from '../agent/ActionParser';
-import { SYSTEM_CHATBOT_PROMPT } from './PromptTemplates';
+import { SUPER_AGENT_SYSTEM_PROMPT } from './PromptTemplates';
 
 export class SenseNovaClient {
   private openai: OpenAI;
@@ -33,7 +33,7 @@ export class SenseNovaClient {
 
   public async generateChatTurn(
     chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
-    systemPrompt: string = SYSTEM_CHATBOT_PROMPT
+    systemPrompt: string = SUPER_AGENT_SYSTEM_PROMPT
   ): Promise<SenseNovaResponseFormat> {
     try {
       const messages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [
@@ -53,5 +53,25 @@ export class SenseNovaClient {
       console.error('[SenseNovaClient] Error generating chat response:', err);
       throw new Error(`SenseNova API Error: ${err.message || String(err)}`);
     }
+  }
+
+  public async generateCompletion(
+    prompt: string,
+    systemPrompt: string = 'You are VORTEXIS AI.'
+  ): Promise<string> {
+    const response = await this.openai.chat.completions.create({
+      model: this.modelName,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+    });
+    return response.choices[0]?.message?.content || '';
+  }
+
+  public async generateStructuredPlan(goal: string, domContext: string, ragContext: string): Promise<any> {
+    const prompt = `Goal: ${goal}\nDOM: ${domContext}\nRAG: ${ragContext}`;
+    const raw = await this.generateCompletion(prompt);
+    return ActionParser.parsePlan(raw);
   }
 }

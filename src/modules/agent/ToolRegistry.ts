@@ -1,5 +1,5 @@
 import { BackgroundToolExecutor } from '../../background';
-import { ToolCall, ToolName, ToolResult } from '../../core/types/agent';
+import { SuperAgentToolParams, ToolName, ToolResult } from '../../core/types/agent';
 import { InteractiveElementInfo } from '../../core/types/messages';
 import { BrowserRAGStore } from '../rag/BrowserRAGStore';
 
@@ -12,13 +12,11 @@ export class ToolRegistry {
     this.ragStore = ragStore;
   }
 
-  public async executeTool(toolCall: ToolCall): Promise<ToolResult> {
-    const { name, parameters } = toolCall;
-
+  public async executeTool(name: ToolName, parameters: SuperAgentToolParams): Promise<ToolResult> {
     try {
-      switch (name as ToolName) {
-        case 'scan_dom_coordinates': {
-          const elements: InteractiveElementInfo[] = await this.toolExecutor.scanDomCoordinates();
+      switch (name) {
+        case 'scan_interactive_tree': {
+          const elements: InteractiveElementInfo[] = await this.toolExecutor.scanInteractiveTree();
           return {
             success: true,
             data: {
@@ -28,37 +26,43 @@ export class ToolRegistry {
           };
         }
 
-        case 'execute_click_coordinate': {
+        case 'click_coordinate': {
           const x = parameters.x ?? 0;
           const y = parameters.y ?? 0;
-          const res = await this.toolExecutor.executeClickCoordinate(x, y, parameters.selector);
+          const res = await this.toolExecutor.clickCoordinate(x, y, parameters.selector);
           return res;
         }
 
-        case 'execute_type_coordinate': {
+        case 'type_with_delay': {
           const text = parameters.text ?? '';
-          const res = await this.toolExecutor.executeTypeCoordinate(text, parameters.x, parameters.y, parameters.selector);
+          const res = await this.toolExecutor.typeWithDelay(text, parameters.x, parameters.y, parameters.selector, parameters.wait_ms);
           return res;
         }
 
-        case 'scroll_page': {
+        case 'scroll_and_find': {
           const direction = parameters.direction || 'down';
           const amount = parameters.amount || 500;
-          const res = await this.toolExecutor.scrollPage(direction, amount);
+          const res = await this.toolExecutor.scrollAndFind(direction, amount);
           return res;
         }
 
-        case 'capture_screen': {
-          const dataUrl = await this.toolExecutor.captureScreen();
+        case 'wait_for_condition': {
+          const waitMs = parameters.wait_ms || 1000;
+          const res = await this.toolExecutor.waitForCondition(waitMs, parameters.selector);
+          return res;
+        }
+
+        case 'capture_and_inspect_vision': {
+          const dataUrl = await this.toolExecutor.captureAndInspectVision();
           return {
             success: true,
-            data: 'Berhasil menangkap screenshot layar.',
+            data: 'Screen captured successfully for vision inspection.',
             screenshotUrl: dataUrl,
           };
         }
 
-        case 'get_page_context': {
-          const pageData = await this.toolExecutor.getPageContext();
+        case 'extract_structured_data': {
+          const pageData = await this.toolExecutor.extractStructuredData();
           await this.ragStore.ingestDocument({
             url: pageData.url,
             title: pageData.title,
@@ -75,10 +79,14 @@ export class ToolRegistry {
             data: {
               title: pageData.title,
               url: pageData.url,
-              snippet: pageData.cleanText.substring(0, 600),
+              snippet: pageData.cleanText.substring(0, 700),
               ragMatches: ragMatches.map((r) => r.chunk.text),
             },
           };
+        }
+
+        case 'finish_task': {
+          return { success: true, data: 'Task completed successfully.' };
         }
 
         default:

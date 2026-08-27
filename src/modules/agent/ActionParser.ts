@@ -1,4 +1,4 @@
-import { ToolName } from '../../core/types/agent';
+import { SuperAgentResponseFormat, ToolName } from '../../core/types/agent';
 
 export interface ActionStepSchema {
   id?: string;
@@ -26,18 +26,44 @@ export interface SenseNovaResponseFormat {
 }
 
 export class ActionParser {
-  public static parseChatResponse(rawResponse: string): SenseNovaResponseFormat {
+  public static parseSuperAgentResponse(rawResponse: string): SuperAgentResponseFormat {
     const cleanedJson = this.extractCleanJson(rawResponse);
 
     try {
       const parsed = JSON.parse(cleanedJson);
-      return this.validateResponseFormat(parsed);
+      return this.validateSuperAgentFormat(parsed);
     } catch {
       return {
-        thought: 'Fallback text response',
-        tool_call: null,
-        reply: rawResponse,
+        thought_process: {
+          current_observation: 'Parsing fallback text response',
+          evaluation: 'Direct response',
+          remaining_goal: 'Complete turn',
+        },
+        plan_status: {
+          current_step: 1,
+          total_steps: 1,
+          step_description: 'Conversational response',
+        },
+        is_goal_achieved: true,
+        next_action: {
+          tool_name: 'finish_task',
+          params: {},
+        },
+        message_to_user: rawResponse,
       };
+    }
+  }
+
+  public static parseChatResponse(rawResponse: string): SenseNovaResponseFormat {
+    const cleanedJson = this.extractCleanJson(rawResponse);
+    try {
+      const parsed = JSON.parse(cleanedJson);
+      return {
+        thought: parsed.thought ? String(parsed.thought) : undefined,
+        reply: parsed.reply ? String(parsed.reply) : String(rawResponse),
+      };
+    } catch {
+      return { reply: rawResponse };
     }
   }
 
@@ -69,33 +95,52 @@ export class ActionParser {
     return cleaned;
   }
 
-  private static validateResponseFormat(obj: any): SenseNovaResponseFormat {
+  private static validateSuperAgentFormat(obj: any): SuperAgentResponseFormat {
     if (typeof obj !== 'object' || obj === null) {
-      return { reply: String(obj || ''), tool_call: null };
+      throw new Error('Parsed LLM response is not an object.');
     }
-    const result: SenseNovaResponseFormat = {
-      thought: obj.thought ? String(obj.thought) : undefined,
-      reply: obj.reply ? String(obj.reply) : undefined,
-      tool_call: null,
+
+    const thought_process = {
+      current_observation: String(obj.thought_process?.current_observation || 'Observing DOM state'),
+      evaluation: String(obj.thought_process?.evaluation || 'Evaluating step status'),
+      remaining_goal: String(obj.thought_process?.remaining_goal || 'Processing goal'),
     };
 
-    if (obj.tool_call && typeof obj.tool_call === 'object' && obj.tool_call.name) {
-      const validTools = new Set([
-        'scan_dom_coordinates',
-        'execute_click_coordinate',
-        'execute_type_coordinate',
-        'scroll_page',
-        'capture_screen',
-        'get_page_context',
-      ]);
+    const plan_status = {
+      current_step: Number(obj.plan_status?.current_step || 1),
+      total_steps: Number(obj.plan_status?.total_steps || 1),
+      step_description: String(obj.plan_status?.step_description || 'Executing action'),
+    };
 
-      if (validTools.has(obj.tool_call.name)) {
-        result.tool_call = {
-          name: obj.tool_call.name as ToolName,
-          parameters: obj.tool_call.parameters || {},
-        };
-      }
-    }
-    return result;
+    const is_goal_achieved = Boolean(obj.is_goal_achieved ?? false);
+
+    const validTools = new Set([
+      'scan_interactive_tree',
+      'click_coordinate',
+      'type_with_delay',
+      'scroll_and_find',
+      'wait_for_condition',
+      'capture_and_inspect_vision',
+      'extract_structured_data',
+      'finish_task',
+    ]);
+
+    const rawToolName = String(obj.next_action?.tool_name || 'finish_task');
+    const tool_name = validTools.has(rawToolName) ? (rawToolName as ToolName) : 'finish_task';
+
+    const next_action = {
+      tool_name,
+      params: obj.next_action?.params || {},
+    };
+
+    const message_to_user = String(obj.message_to_user || obj.reply || 'Processing goal...');
+
+    return {
+      thought_process,
+      plan_status,
+      is_goal_achieved,
+      next_action,
+      message_to_user,
+    };
   }
 }

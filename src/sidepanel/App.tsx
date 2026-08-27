@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { BackgroundToolExecutor } from '../background';
 import { ChatMessage, ToolName } from '../core/types/agent';
-import { AgentEngine } from '../modules/agent/AgentEngine';
+import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
+import { SelfHealingDriver } from '../modules/agent/SelfHealingDriver';
 import { ToolRegistry } from '../modules/agent/ToolRegistry';
 import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
 import { ChatPanelContainer } from './ChatPanel';
@@ -10,13 +11,16 @@ import { ChatInput } from './components/ChatInput';
 const toolExecutor = new BackgroundToolExecutor();
 const ragStore = new BrowserRAGStore();
 const toolRegistry = new ToolRegistry(toolExecutor, ragStore);
-const agentEngine = new AgentEngine();
+const selfHealingDriver = new SelfHealingDriver(toolRegistry, toolExecutor);
+const autonomousPlanner = new AutonomousPlanner(toolRegistry, selfHealingDriver);
 
 export const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const stopSignalRef = useRef<boolean>(false);
 
   const handleSendMessage = async (text: string) => {
+    stopSignalRef.current = false;
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -28,12 +32,28 @@ export const App: React.FC = () => {
     setIsThinking(true);
 
     try {
-      await runAgentTurn([...messages, userMsg]);
+      await autonomousPlanner.runSuperAgentLoop(
+        text,
+        [...messages, userMsg],
+        (stepUpdateMsg: ChatMessage) => {
+          setMessages((prev) => {
+            const existingIdx = prev.findIndex((m) => m.id === stepUpdateMsg.id);
+            if (existingIdx !== -1) {
+              const updated = [...prev];
+              updated[existingIdx] = stepUpdateMsg;
+              return updated;
+            }
+            return [...prev, stepUpdateMsg];
+          });
+        },
+        () => stopSignalRef.current,
+        12 // Max iterations safeguard
+      );
     } catch (err: any) {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: `⚠️ Kendala Sistem: ${err.message || String(err)}`,
+        content: `⚠️ Kendala Sistem Super-Agent: ${err.message || String(err)}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -42,68 +62,8 @@ export const App: React.FC = () => {
     }
   };
 
-  const runAgentTurn = async (chatHistory: ChatMessage[]) => {
-    const historyPayload = chatHistory.map((m) => ({
-      role: m.role,
-      content: m.content || (m.toolCall ? `Menjalankan skill: ${m.toolCall.name}` : ''),
-    }));
-
-    const response = await agentEngine.runChatTurn(historyPayload);
-
-    if (response.tool_call) {
-      const toolCall = response.tool_call;
-      const aiToolMsg: ChatMessage = {
-        id: `msg-ai-${Date.now()}`,
-        role: 'assistant',
-        content: response.reply || `Memicu skill agent: ${toolCall.name}...`,
-        thought: response.thought,
-        toolCall,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, aiToolMsg]);
-
-      // Execute skill otonomous
-      const toolRes = await toolRegistry.executeTool(toolCall);
-
-      aiToolMsg.toolResult = toolRes;
-      setMessages((prev) => prev.map((m) => (m.id === aiToolMsg.id ? { ...m, toolResult: toolRes } : m)));
-
-      // Feedback turn to agent engine
-      const feedbackMsg: ChatMessage = {
-        id: `msg-sys-${Date.now()}`,
-        role: 'system',
-        content: `Hasil eksekusi skill ${toolCall.name}: ${JSON.stringify(toolRes.data || toolRes.error)}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      const updatedHistory = [...chatHistory, aiToolMsg, feedbackMsg];
-      const secondTurnRes = await agentEngine.runChatTurn(
-        updatedHistory.map((m) => ({ role: m.role, content: m.content }))
-      );
-
-      const finalAiMsg: ChatMessage = {
-        id: `msg-final-${Date.now()}`,
-        role: 'assistant',
-        content: secondTurnRes.reply || 'Eksekusi selesai.',
-        thought: secondTurnRes.thought,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, finalAiMsg]);
-    } else {
-      const aiMsg: ChatMessage = {
-        id: `msg-ai-${Date.now()}`,
-        role: 'assistant',
-        content: response.reply || 'Halo! Ada yang bisa saya bantu?',
-        thought: response.thought,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-    }
-  };
-
   const handleTriggerQuickTool = async (toolName: ToolName) => {
+    stopSignalRef.current = false;
     const toolCall = { name: toolName, parameters: {} };
     const userMsg: ChatMessage = {
       id: `msg-quick-${Date.now()}`,
@@ -116,7 +76,7 @@ export const App: React.FC = () => {
     setIsThinking(true);
 
     try {
-      const toolRes = await toolRegistry.executeTool(toolCall);
+      const toolRes = await selfHealingDriver.executeWithSelfHealing(toolName, {});
       const aiMsg: ChatMessage = {
         id: `msg-res-${Date.now()}`,
         role: 'assistant',
@@ -140,17 +100,24 @@ export const App: React.FC = () => {
   };
 
   const handleClearChat = () => {
+    stopSignalRef.current = true;
     setMessages([]);
     setIsThinking(false);
   };
 
   const handleStop = () => {
+    stopSignalRef.current = true;
     setIsThinking(false);
   };
 
   return (
     <div className="w-full h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-hidden">
-      <ChatPanelContainer messages={messages} isThinking={isThinking} onClearChat={handleClearChat} />
+      <ChatPanelContainer
+        messages={messages}
+        isThinking={isThinking}
+        onClearChat={handleClearChat}
+        onEmergencyStop={handleStop}
+      />
       <ChatInput
         onSendMessage={handleSendMessage}
         onTriggerQuickTool={handleTriggerQuickTool}

@@ -3,10 +3,7 @@ import { InteractiveElementInfo } from '../../core/types/messages';
 export class CoordinateDriver {
   private static markerContainer: HTMLDivElement | null = null;
 
-  /**
-   * Skill 1: Pindai Elemen & Koordinat Bounding Box presisi
-   */
-  public static scanDomCoordinates(): InteractiveElementInfo[] {
+  public static scanInteractiveTree(): InteractiveElementInfo[] {
     this.clearMarkers();
 
     const querySelector = `
@@ -66,7 +63,6 @@ export class CoordinateDriver {
 
       interactiveList.push(info);
 
-      // Visual Tag Marker
       if (this.markerContainer) {
         const marker = document.createElement('div');
         marker.innerText = `${currentId}`;
@@ -92,22 +88,20 @@ export class CoordinateDriver {
     return interactiveList;
   }
 
-  /**
-   * Skill 2: Eksekusi Klik berbasis koordinat presisi / selector
-   */
-  public static executeClickCoordinate(x: number, y: number, selector?: string): { success: boolean; result?: string; error?: string } {
+  public static clickCoordinate(x: number, y: number, selector?: string): { success: boolean; result?: string; error?: string } {
     try {
       let targetEl: Element | null = null;
       if (selector) targetEl = document.querySelector(selector);
       if (!targetEl) targetEl = document.elementFromPoint(x, y);
 
       if (!targetEl) {
-        return { success: false, error: `Elemen tidak ditemukan pada koordinat (x: ${x}, y: ${y})` };
+        return { success: false, error: `Element not found at (x: ${x}, y: ${y})` };
       }
 
       const htmlEl = targetEl as HTMLElement;
       htmlEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
+      // Neon Glow Pin Feedback
       this.showClickGlow(x, y);
 
       htmlEl.focus();
@@ -118,20 +112,18 @@ export class CoordinateDriver {
         htmlEl.dispatchEvent(evt);
       });
 
-      return { success: true, result: `Mengeklik elemen pada (x: ${x}, y: ${y})` };
+      return { success: true, result: `Clicked element at (x: ${x}, y: ${y})` };
     } catch (err: any) {
       return { success: false, error: err.message || String(err) };
     }
   }
 
-  /**
-   * Skill 2 (Cont.): Eksekusi Input Teks Berbasis Koordinat
-   */
-  public static executeTypeCoordinate(
+  public static typeWithDelay(
     text: string,
     x?: number,
     y?: number,
-    selector?: string
+    selector?: string,
+    waitMs: number = 300
   ): { success: boolean; result?: string; error?: string } {
     try {
       let targetEl: Element | null = null;
@@ -139,7 +131,7 @@ export class CoordinateDriver {
       if (!targetEl && x !== undefined && y !== undefined) targetEl = document.elementFromPoint(x, y);
       if (!targetEl) targetEl = document.activeElement;
 
-      if (!targetEl) return { success: false, error: 'Target input tidak ditemukan.' };
+      if (!targetEl) return { success: false, error: 'Target input element not found.' };
 
       const inputEl = targetEl as HTMLInputElement | HTMLTextAreaElement;
       inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -149,19 +141,32 @@ export class CoordinateDriver {
       inputEl.dispatchEvent(new Event('input', { bubbles: true }));
       inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 
-      return { success: true, result: `Mengetik "${text}" pada elemen input.` };
+      return { success: true, result: `Typed "${text}" with ${waitMs}ms delay.` };
     } catch (err: any) {
       return { success: false, error: err.message || String(err) };
     }
   }
 
-  /**
-   * Skill 3: Scroll Navigasi Halaman
-   */
-  public static scrollPage(direction: 'up' | 'down' = 'down', amount: number = 500): { success: boolean; result?: string } {
+  public static scrollAndFind(direction: 'up' | 'down' = 'down', amount: number = 500): { success: boolean; result?: string } {
     const top = direction === 'down' ? amount : -amount;
     window.scrollBy({ top, behavior: 'smooth' });
-    return { success: true, result: `Menggeser halaman ${direction} sebesar ${amount}px.` };
+    return { success: true, result: `Scrolled page ${direction} by ${amount}px.` };
+  }
+
+  public static async waitForCondition(waitMs: number = 1000, selector?: string): Promise<{ success: boolean; result?: string }> {
+    if (selector) {
+      let elapsed = 0;
+      while (elapsed < waitMs) {
+        if (document.querySelector(selector)) {
+          return { success: true, result: `Element matching [${selector}] appeared.` };
+        }
+        await new Promise((r) => setTimeout(r, 200));
+        elapsed += 200;
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+    return { success: true, result: `Waited for ${waitMs}ms.` };
   }
 
   public static clearMarkers(): void {
@@ -181,9 +186,9 @@ export class CoordinateDriver {
     glow.style.width = '30px';
     glow.style.height = '30px';
     glow.style.borderRadius = '50%';
-    glow.style.backgroundColor = 'rgba(236, 72, 153, 0.6)';
+    glow.style.backgroundColor = 'rgba(236, 72, 153, 0.7)';
     glow.style.border = '2px solid #ec4899';
-    glow.style.boxShadow = '0 0 15px #ec4899';
+    glow.style.boxShadow = '0 0 20px #ec4899';
     glow.style.pointerEvents = 'none';
     glow.style.zIndex = '2147483647';
     glow.style.transition = 'all 0.4s ease-out';
@@ -191,7 +196,7 @@ export class CoordinateDriver {
     document.body.appendChild(glow);
 
     setTimeout(() => {
-      glow.style.transform = 'scale(2)';
+      glow.style.transform = 'scale(2.5)';
       glow.style.opacity = '0';
     }, 50);
 

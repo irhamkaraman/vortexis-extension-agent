@@ -45,39 +45,39 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       {/* Quick Skill Action Chips */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
         <button
-          onClick={() => onTriggerQuickTool('capture_screen')}
+          onClick={() => onTriggerQuickTool('capture_and_inspect_vision')}
           disabled={isThinking}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-pink-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
           <Camera className="w-3 h-3 text-pink-400" />
-          <span>📸 Screenshot Tab</span>
+          <span>📸 Vision Tab</span>
         </button>
 
         <button
-          onClick={() => onTriggerQuickTool('scan_dom_coordinates')}
+          onClick={() => onTriggerQuickTool('scan_interactive_tree')}
           disabled={isThinking}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-cyan-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
           <Scan className="w-3 h-3 text-cyan-400" />
-          <span>🔍 Analisis Elemen</span>
+          <span>🔍 Scan Tree</span>
         </button>
 
         <button
-          onClick={() => onTriggerQuickTool('scroll_page')}
+          onClick={() => onTriggerQuickTool('scroll_and_find')}
           disabled={isThinking}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-emerald-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
           <MoveVertical className="w-3 h-3 text-emerald-400" />
-          <span>📜 Scroll Down</span>
+          <span>📜 Scroll View</span>
         </button>
 
         <button
-          onClick={() => onTriggerQuickTool('get_page_context')}
+          onClick={() => onTriggerQuickTool('extract_structured_data')}
           disabled={isThinking}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-blue-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
           <FileText className="w-3 h-3 text-blue-400" />
-          <span>📖 Ingest Context</span>
+          <span>📖 Ingest Data</span>
         </button>
       </div>
 
@@ -88,7 +88,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ketik instruksi bebas atau pertanyaan..."
+          placeholder="Tugas abstrak (e.g. Carikan laptop 10-15jt, klik yang paling worth it)..."
           rows={1}
           disabled={isThinking}
           className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-3 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors resize-none disabled:opacity-50"

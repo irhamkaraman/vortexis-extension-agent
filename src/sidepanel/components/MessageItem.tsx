@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, CheckCircle2, ChevronDown, ChevronRight, MousePointerClick, ScanLine, User, Wrench, XCircle } from 'lucide-react';
+import { Bot, CheckCircle2, ChevronDown, ChevronRight, Eye, MousePointerClick, ScanLine, User, Wrench, XCircle } from 'lucide-react';
 import { ChatMessage } from '../../core/types/agent';
 
 interface MessageItemProps {
@@ -14,18 +14,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
   const getToolTitle = (name?: string) => {
     switch (name) {
-      case 'scan_dom_coordinates':
-        return '📍 Memindai elemen interaktif...';
-      case 'execute_click_coordinate':
-        return '🖱️ Mengklik koordinat...';
-      case 'execute_type_coordinate':
+      case 'scan_interactive_tree':
+        return '📍 Memindai elemen interaktif & koordinat...';
+      case 'click_coordinate':
+        return '🖱️ Mengklik pada koordinat...';
+      case 'type_with_delay':
         return '⌨️ Mengetik input teks...';
-      case 'scroll_page':
-        return '📜 Menggeser halaman...';
-      case 'capture_screen':
-        return '📸 Menangkap screenshot layar...';
-      case 'get_page_context':
-        return '🔍 Membaca konteks halaman...';
+      case 'scroll_and_find':
+        return '📜 Menggeser viewport halaman...';
+      case 'wait_for_condition':
+        return '⏳ Menunggu kondisi elemen selesai...';
+      case 'capture_and_inspect_vision':
+        return '📸 Menangkap screenshot layar vision...';
+      case 'extract_structured_data':
+        return '🔍 Membaca data terstruktur...';
+      case 'finish_task':
+        return '✅ Menyelesaikan tugas...';
       default:
         return '🛠️ Menjalankan skill...';
     }
@@ -33,11 +37,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
   const getToolIcon = (name?: string) => {
     switch (name) {
-      case 'scan_dom_coordinates':
+      case 'scan_interactive_tree':
         return <ScanLine className="w-3.5 h-3.5 text-cyan-400" />;
-      case 'execute_click_coordinate':
-      case 'execute_type_coordinate':
+      case 'click_coordinate':
+      case 'type_with_delay':
         return <MousePointerClick className="w-3.5 h-3.5 text-pink-400" />;
+      case 'capture_and_inspect_vision':
+        return <Eye className="w-3.5 h-3.5 text-purple-400" />;
       default:
         return <Wrench className="w-3.5 h-3.5 text-blue-400" />;
     }
@@ -86,7 +92,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
               {showToolDetails && (
                 <div className="mt-2 pt-2 border-t border-slate-800/80 font-mono text-[10px] text-slate-400 space-y-1.5">
                   <div className="bg-slate-900/90 rounded p-1.5 border border-slate-800/60 overflow-x-auto">
-                    <span className="text-slate-500">Parameters: </span>
+                    <span className="text-slate-500">Params: </span>
                     <span className="text-slate-300">{JSON.stringify(message.toolCall.parameters)}</span>
                   </div>
 
