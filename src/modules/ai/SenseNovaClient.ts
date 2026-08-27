@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { ActionParser, SenseNovaResponseFormat } from '../agent/ActionParser';
-import { SUPER_AGENT_SYSTEM_PROMPT } from './PromptTemplates';
+import { TRADING_COPILOT_SYSTEM_PROMPT } from './PromptTemplates';
 
 export class SenseNovaClient {
   private openai: OpenAI;
@@ -33,7 +33,7 @@ export class SenseNovaClient {
 
   public async generateChatTurn(
     chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
-    systemPrompt: string = SUPER_AGENT_SYSTEM_PROMPT
+    systemPrompt: string = TRADING_COPILOT_SYSTEM_PROMPT
   ): Promise<SenseNovaResponseFormat> {
     try {
       const messages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [

@@ -29,6 +29,36 @@ export interface AgentExecutionLog {
   details?: Record<string, unknown>;
 }
 
+export interface DomainPermissionSetting {
+  domain: string;
+  mode: 'auto' | 'approval';
+}
+
+export interface ActionMacro {
+  id: string;
+  domain: string;
+  goalPattern: string;
+  actions: {
+    toolName: ToolName;
+    params: SuperAgentToolParams;
+  }[];
+  createdAt: string;
+}
+
+export interface ThoughtProcess {
+  current_observation: string;
+  evaluation?: string;
+  remaining_goal?: string;
+  is_dangerous_action?: boolean;
+  requires_confirmation?: boolean;
+}
+
+export interface PlanStatus {
+  current_step: number;
+  total_steps: number;
+  step_description: string;
+}
+
 export type ToolName =
   | 'scan_interactive_tree'
   | 'click_coordinate'
@@ -43,7 +73,24 @@ export type ToolName =
   | 'inspect_canvas_layers'
   | 'request_user_confirmation'
   | 'save_action_macro'
+  | 'switch_timeframe'
+  | 'capture_chart_vision'
+  | 'draw_on_chart'
+  | 'fill_order_parameters'
+  | 'request_trade_confirmation'
+  | 'execute_confirmed_order'
   | 'finish_task';
+
+export interface TradeDetails {
+  pair: string;
+  action_type: 'BUY' | 'SELL' | 'HOLD';
+  entry_price: string;
+  stop_loss: string;
+  take_profit: string;
+  risk_percentage?: string;
+  lotSize?: string;
+  buttonSelector?: string;
+}
 
 export interface SuperAgentToolParams {
   x?: number;
@@ -62,20 +109,24 @@ export interface SuperAgentToolParams {
   warning_message?: string;
   goalPattern?: string;
   actionSequence?: any[];
+  timeframe?: string;
+  toolName?: string;
+  side?: 'BUY' | 'SELL';
+  lotSize?: string;
+  sl?: string;
+  tp?: string;
+  tradePlan?: TradeDetails;
+  buttonSelector?: string;
 }
 
-export interface ThoughtProcess {
+export interface TradingThoughtProcess {
+  market_bias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  timeframe_checked: string;
+  technical_reasoning: string;
+  risk_reward_ratio: string;
   current_observation: string;
   evaluation?: string;
   remaining_goal?: string;
-  is_dangerous_action?: boolean;
-  requires_confirmation?: boolean;
-}
-
-export interface PlanStatus {
-  current_step: number;
-  total_steps: number;
-  step_description: string;
 }
 
 export interface SuperAgentNextAction {
@@ -83,12 +134,14 @@ export interface SuperAgentNextAction {
   params: SuperAgentToolParams;
 }
 
-export interface SuperAgentResponseFormat {
-  thought_process: ThoughtProcess;
-  plan_status: PlanStatus;
-  is_goal_achieved: boolean;
-  next_action: SuperAgentNextAction;
-  message_to_user: string;
+export interface TradingResponseFormat {
+  thought_process: TradingThoughtProcess;
+  trade_signal?: TradeDetails;
+  is_goal_achieved?: boolean;
+  next_step?: SuperAgentNextAction;
+  next_action?: SuperAgentNextAction;
+  live_status_message: string;
+  message_to_user?: string;
 }
 
 export interface ToolResult {
@@ -96,6 +149,8 @@ export interface ToolResult {
   data?: any;
   error?: string;
   screenshotUrl?: string;
+  requiresTradeApproval?: boolean;
+  tradePlan?: TradeDetails;
   requiresApproval?: boolean;
   warningMessage?: string;
 }
@@ -104,28 +159,13 @@ export interface ChatMessage {
   id: string;
   role: Role;
   content: string;
-  thoughtProcess?: ThoughtProcess;
+  thoughtProcess?: TradingThoughtProcess;
   planStatus?: PlanStatus;
+  tradeSignal?: TradeDetails;
   toolCall?: {
     name: ToolName;
     parameters: SuperAgentToolParams;
   };
   toolResult?: ToolResult;
   timestamp: string;
-}
-
-export interface DomainPermissionSetting {
-  domain: string;
-  mode: 'auto' | 'approval';
-}
-
-export interface ActionMacro {
-  id: string;
-  domain: string;
-  goalPattern: string;
-  actions: {
-    toolName: ToolName;
-    params: SuperAgentToolParams;
-  }[];
-  createdAt: string;
 }

@@ -21,27 +21,54 @@ export class ToolRegistry {
   public async executeTool(name: ToolName, parameters: SuperAgentToolParams): Promise<ToolResult> {
     const domain = await this.toolExecutor.getActiveTabDomain();
 
-    // Check Site-Specific Security Guardrails & Human-in-the-Loop Approval
-    if (name !== 'request_user_confirmation' && name !== 'finish_task') {
-      const mode = await PermissionManager.getDomainPermission(domain);
-      const isDangerous = PermissionManager.isDangerousAction(
-        name,
-        parameters.text || parameters.warning_message || parameters.selector
-      );
-
-      if (mode === 'approval' && isDangerous) {
+    // Mandatory Human-in-the-Loop Approval Gate for Trade Execution
+    if (name === 'request_trade_confirmation' || name === 'execute_confirmed_order') {
+      if (name === 'request_trade_confirmation') {
         return {
           success: false,
-          requiresApproval: true,
-          warningMessage:
-            parameters.warning_message ||
-            `Aksi berisiko (${name}) terdeteksi pada ${domain}. Memerlukan persetujuan pengguna.`,
+          requiresTradeApproval: true,
+          tradePlan: parameters.tradePlan,
         };
       }
     }
 
     try {
       switch (name) {
+        case 'switch_timeframe': {
+          const tf = parameters.timeframe || '15m';
+          return await this.toolExecutor.switchTimeframe(tf);
+        }
+
+        case 'capture_chart_vision': {
+          const dataUrl = await this.toolExecutor.captureChartVision();
+          return {
+            success: true,
+            data: 'Berhasil menangkap screenshot visual chart.',
+            screenshotUrl: dataUrl,
+          };
+        }
+
+        case 'draw_on_chart': {
+          const tool = parameters.toolName || 'Trendline';
+          const startX = parameters.startX ?? 0;
+          const startY = parameters.startY ?? 0;
+          const endX = parameters.endX ?? 0;
+          const endY = parameters.endY ?? 0;
+          return await this.toolExecutor.drawOnChart(tool, startX, startY, endX, endY);
+        }
+
+        case 'fill_order_parameters': {
+          const side = parameters.side || 'BUY';
+          const lotSize = parameters.lotSize || '0.01';
+          const sl = parameters.sl || '';
+          const tp = parameters.tp || '';
+          return await this.toolExecutor.fillOrderParameters(side, lotSize, sl, tp);
+        }
+
+        case 'execute_confirmed_order': {
+          return await this.toolExecutor.executeConfirmedOrder(parameters.buttonSelector);
+        }
+
         case 'scan_interactive_tree': {
           const elements: InteractiveElementInfo[] = await this.toolExecutor.scanInteractiveTree();
           return {
@@ -59,25 +86,6 @@ export class ToolRegistry {
           return await this.toolExecutor.clickCoordinate(x, y, parameters.selector);
         }
 
-        case 'double_click_coordinate': {
-          const x = parameters.x ?? 0;
-          const y = parameters.y ?? 0;
-          return await this.toolExecutor.doubleClickCoordinate(x, y, parameters.selector);
-        }
-
-        case 'drag_and_drop_element': {
-          const startX = parameters.startX ?? 0;
-          const startY = parameters.startY ?? 0;
-          const endX = parameters.endX ?? 0;
-          const endY = parameters.endY ?? 0;
-          return await this.toolExecutor.dragAndDrop(startX, startY, endX, endY);
-        }
-
-        case 'trigger_keyboard_shortcut': {
-          const keys = parameters.keys || ['Enter'];
-          return await this.toolExecutor.sendHotkeys(keys);
-        }
-
         case 'type_with_delay': {
           const text = parameters.text ?? '';
           return await this.toolExecutor.typeWithDelay(text, parameters.x, parameters.y, parameters.selector, parameters.wait_ms);
@@ -89,24 +97,6 @@ export class ToolRegistry {
           return await this.toolExecutor.scrollAndFind(direction, amount);
         }
 
-        case 'wait_for_condition': {
-          const waitMs = parameters.wait_ms || 1000;
-          return await this.toolExecutor.waitForCondition(waitMs, parameters.selector);
-        }
-
-        case 'inspect_canvas_layers': {
-          return await this.toolExecutor.inspectCanvasLayers(parameters.selector);
-        }
-
-        case 'capture_and_inspect_vision': {
-          const dataUrl = await this.toolExecutor.captureAndInspectVision();
-          return {
-            success: true,
-            data: 'Screen captured successfully for vision inspection.',
-            screenshotUrl: dataUrl,
-          };
-        }
-
         case 'extract_structured_data': {
           const pageData = await this.toolExecutor.extractStructuredData();
           await this.ragStore.ingestDocument({
@@ -115,40 +105,18 @@ export class ToolRegistry {
             text: pageData.cleanText,
           });
 
-          let ragMatches: any[] = [];
-          if (parameters.query) {
-            ragMatches = await this.ragStore.query(parameters.query, 3);
-          }
-
           return {
             success: true,
             data: {
               title: pageData.title,
               url: pageData.url,
               snippet: pageData.cleanText.substring(0, 700),
-              ragMatches: ragMatches.map((r) => r.chunk.text),
             },
           };
         }
 
-        case 'request_user_confirmation': {
-          return {
-            success: false,
-            requiresApproval: true,
-            warningMessage: parameters.warning_message || 'Konfirmasi persetujuan pengguna diperlukan.',
-          };
-        }
-
-        case 'save_action_macro': {
-          if (parameters.goalPattern && parameters.actionSequence) {
-            await PatternCacheStore.saveMacro(domain, parameters.goalPattern, parameters.actionSequence);
-            return { success: true, data: `Macro [${parameters.goalPattern}] berhasil disimpan.` };
-          }
-          return { success: false, error: 'Goal pattern & action sequence required.' };
-        }
-
         case 'finish_task': {
-          return { success: true, data: 'Tugas berhasil diselesaikan.' };
+          return { success: true, data: 'Analisa & aksi trading selesai.' };
         }
 
         default:

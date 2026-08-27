@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { BackgroundToolExecutor } from '../background';
-import { ChatMessage, ToolName } from '../core/types/agent';
+import { ChatMessage, ToolName, TradeDetails } from '../core/types/agent';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
 import { SelfHealingDriver } from '../modules/agent/SelfHealingDriver';
 import { ToolRegistry } from '../modules/agent/ToolRegistry';
@@ -17,8 +17,8 @@ const autonomousPlanner = new AutonomousPlanner(toolRegistry, selfHealingDriver)
 export const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
-  const [pendingConfirmation, setPendingConfirmation] = useState<{
-    warningMessage: string;
+  const [pendingTradeApproval, setPendingTradeApproval] = useState<{
+    tradePlan: TradeDetails;
     onApprove: () => void;
     onReject: () => void;
   } | null>(null);
@@ -27,7 +27,7 @@ export const App: React.FC = () => {
 
   const handleSendMessage = async (text: string) => {
     stopSignalRef.current = false;
-    setPendingConfirmation(null);
+    setPendingTradeApproval(null);
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -55,38 +55,38 @@ export const App: React.FC = () => {
           });
         },
         () => stopSignalRef.current,
-        (warningMessage, onApprove, onReject) => {
-          setPendingConfirmation({
-            warningMessage,
+        (tradePlan, onApprove, onReject) => {
+          setPendingTradeApproval({
+            tradePlan,
             onApprove: () => {
-              setPendingConfirmation(null);
+              setPendingTradeApproval(null);
               onApprove();
             },
             onReject: () => {
-              setPendingConfirmation(null);
+              setPendingTradeApproval(null);
               onReject();
             },
           });
         },
-        15 // Max iterations safeguard
+        12
       );
     } catch (err: any) {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: `⚠️ Kendala Sistem Ultra-Agent: ${err.message || String(err)}`,
+        content: `⚠️ Kendala Sistem Trading Copilot: ${err.message || String(err)}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsThinking(false);
-      setPendingConfirmation(null);
+      setPendingTradeApproval(null);
     }
   };
 
   const handleTriggerQuickTool = async (toolName: ToolName) => {
     stopSignalRef.current = false;
-    setPendingConfirmation(null);
+    setPendingTradeApproval(null);
 
     const toolCall = { name: toolName, parameters: {} };
     const userMsg: ChatMessage = {
@@ -127,13 +127,13 @@ export const App: React.FC = () => {
     stopSignalRef.current = true;
     setMessages([]);
     setIsThinking(false);
-    setPendingConfirmation(null);
+    setPendingTradeApproval(null);
   };
 
   const handleStop = () => {
     stopSignalRef.current = true;
     setIsThinking(false);
-    setPendingConfirmation(null);
+    setPendingTradeApproval(null);
   };
 
   return (
@@ -143,7 +143,7 @@ export const App: React.FC = () => {
         isThinking={isThinking}
         onClearChat={handleClearChat}
         onEmergencyStop={handleStop}
-        pendingConfirmation={pendingConfirmation}
+        pendingTradeApproval={pendingTradeApproval}
       />
       <ChatInput
         onSendMessage={handleSendMessage}

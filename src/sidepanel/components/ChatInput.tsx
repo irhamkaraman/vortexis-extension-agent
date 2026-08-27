@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, FileText, MoveVertical, Scan, Send, Square } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Camera, Clock, LineChart, PenTool, Send, Square } from 'lucide-react';
 import { ToolName } from '../../core/types/agent';
 
 interface ChatInputProps {
@@ -18,13 +18,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
-    }
-  }, [input]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isThinking) {
@@ -42,42 +35,33 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="bg-slate-900/90 border-t border-slate-800 p-3 flex flex-col gap-2 shadow-2xl">
-      {/* Quick Skill Action Chips */}
+      {/* Trading Quick Skill Chips */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
         <button
-          onClick={() => onTriggerQuickTool('capture_and_inspect_vision')}
-          disabled={isThinking}
-          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-pink-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
-        >
-          <Camera className="w-3 h-3 text-pink-400" />
-          <span>📸 Vision Tab</span>
-        </button>
-
-        <button
-          onClick={() => onTriggerQuickTool('scan_interactive_tree')}
-          disabled={isThinking}
-          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-cyan-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
-        >
-          <Scan className="w-3 h-3 text-cyan-400" />
-          <span>🔍 Scan Tree</span>
-        </button>
-
-        <button
-          onClick={() => onTriggerQuickTool('scroll_and_find')}
+          onClick={() => onTriggerQuickTool('capture_chart_vision')}
           disabled={isThinking}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-emerald-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
-          <MoveVertical className="w-3 h-3 text-emerald-400" />
-          <span>📜 Scroll View</span>
+          <Camera className="w-3 h-3 text-emerald-400" />
+          <span>📸 Chart Vision</span>
         </button>
 
         <button
-          onClick={() => onTriggerQuickTool('extract_structured_data')}
+          onClick={() => onTriggerQuickTool('switch_timeframe')}
           disabled={isThinking}
-          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-blue-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
+          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-cyan-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
-          <FileText className="w-3 h-3 text-blue-400" />
-          <span>📖 Ingest Data</span>
+          <Clock className="w-3 h-3 text-cyan-400" />
+          <span>⏱️ Timeframe 15m</span>
+        </button>
+
+        <button
+          onClick={() => onTriggerQuickTool('draw_on_chart')}
+          disabled={isThinking}
+          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-purple-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
+        >
+          <PenTool className="w-3 h-3 text-purple-400" />
+          <span>🎨 Draw Levels</span>
         </button>
       </div>
 
@@ -88,10 +72,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Tugas abstrak (e.g. Carikan laptop 10-15jt, klik yang paling worth it)..."
+          placeholder="Instruksi trading (e.g. Analisis chart BTC/USDT 4H & 15M, buat rencana Buy RRR 1:2)..."
           rows={1}
           disabled={isThinking}
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-3 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors resize-none disabled:opacity-50"
+          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-3 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors resize-none disabled:opacity-50"
         />
 
         {isThinking ? (
@@ -107,7 +91,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <button
             type="submit"
             disabled={!input.trim()}
-            className="absolute right-2 p-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white transition-all shadow-md cursor-pointer"
+            className="absolute right-2 p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white transition-all shadow-md cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

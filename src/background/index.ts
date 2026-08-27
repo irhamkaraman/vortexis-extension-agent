@@ -1,4 +1,5 @@
 import { InteractiveElementInfo, IPCMessage } from '../core/types/messages';
+import { ChartVisionService } from '../modules/trading/ChartVisionService';
 
 console.log('[VORTEXIS] Background Service Worker initialized.');
 
@@ -9,6 +10,58 @@ if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
 }
 
 export class BackgroundToolExecutor {
+  public async switchTimeframe(timeframe: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'SWITCH_TIMEFRAME',
+      payload: { timeframe },
+    });
+  }
+
+  public async captureChartVision(): Promise<string> {
+    return await ChartVisionService.captureChartVision();
+  }
+
+  public async drawOnChart(toolName: string, startX: number, startY: number, endX: number, endY: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'DRAW_ON_CHART',
+      payload: { toolName, startX, startY, endX, endY },
+    });
+  }
+
+  public async fillOrderParameters(side: 'BUY' | 'SELL', lotSize: string, sl: string, tp: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'FILL_ORDER_PARAMETERS',
+      payload: { side, lotSize, sl, tp },
+    });
+  }
+
+  public async executeConfirmedOrder(buttonSelector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'EXECUTE_CONFIRMED_ORDER',
+      payload: { buttonSelector },
+    });
+  }
+
   public async scanInteractiveTree(tabId?: number): Promise<InteractiveElementInfo[]> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) throw new Error('Tidak ada tab Chrome yang aktif.');
@@ -34,42 +87,6 @@ export class BackgroundToolExecutor {
     });
   }
 
-  public async doubleClickCoordinate(x: number, y: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
-    const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
-
-    await this.ensureContentScriptInjected(targetTabId);
-
-    return await this.sendMessageToTab(targetTabId, {
-      type: 'DOUBLE_CLICK_COORDINATE',
-      payload: { x, y, selector },
-    });
-  }
-
-  public async dragAndDrop(startX: number, startY: number, endX: number, endY: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
-    const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
-
-    await this.ensureContentScriptInjected(targetTabId);
-
-    return await this.sendMessageToTab(targetTabId, {
-      type: 'DRAG_AND_DROP',
-      payload: { startX, startY, endX, endY },
-    });
-  }
-
-  public async sendHotkeys(keys: string[], tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
-    const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
-
-    await this.ensureContentScriptInjected(targetTabId);
-
-    return await this.sendMessageToTab(targetTabId, {
-      type: 'SEND_HOTKEYS',
-      payload: { keys },
-    });
-  }
-
   public async typeWithDelay(text: string, x?: number, y?: number, selector?: string, waitMs?: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
@@ -91,44 +108,6 @@ export class BackgroundToolExecutor {
     return await this.sendMessageToTab(targetTabId, {
       type: 'SCROLL_AND_FIND',
       payload: { direction, amount },
-    });
-  }
-
-  public async waitForCondition(waitMs: number = 1000, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
-    const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
-
-    await this.ensureContentScriptInjected(targetTabId);
-
-    return await this.sendMessageToTab(targetTabId, {
-      type: 'WAIT_FOR_CONDITION',
-      payload: { wait_ms: waitMs, selector },
-    });
-  }
-
-  public async inspectCanvasLayers(selector?: string, tabId?: number): Promise<{ success: boolean; result?: any; error?: string }> {
-    const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
-
-    await this.ensureContentScriptInjected(targetTabId);
-
-    return await this.sendMessageToTab(targetTabId, {
-      type: 'INSPECT_CANVAS_LAYERS',
-      payload: { selector },
-    });
-  }
-
-  public async captureAndInspectVision(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      chrome.tabs.captureVisibleTab(chrome.windows.WINDOW_ID_CURRENT, { format: 'png' }, (dataUrl) => {
-        if (chrome.runtime.lastError) {
-          return reject(new Error(chrome.runtime.lastError.message));
-        }
-        if (!dataUrl) {
-          return reject(new Error('Gagal menangkap screenshot layar tab.'));
-        }
-        resolve(dataUrl);
-      });
     });
   }
 

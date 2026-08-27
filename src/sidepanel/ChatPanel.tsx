@@ -1,18 +1,17 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Bot, Shield, Trash2, Zap } from 'lucide-react';
-import { ChatMessage, PlanStatus, ThoughtProcess } from '../core/types/agent';
-import { ConfirmationCard } from './components/ConfirmationCard';
-import { ExecutionTracker } from './components/ExecutionTracker';
+import { Bot, LineChart, Shield, Trash2, Zap } from 'lucide-react';
+import { ChatMessage, TradeDetails, TradingThoughtProcess } from '../core/types/agent';
 import { MessageItem } from './components/MessageItem';
 import { PermissionModal } from './components/PermissionModal';
+import { TradeApprovalCard } from './components/TradeApprovalCard';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
   isThinking: boolean;
   onClearChat: () => void;
   onEmergencyStop: () => void;
-  pendingConfirmation?: {
-    warningMessage: string;
+  pendingTradeApproval?: {
+    tradePlan: TradeDetails;
     onApprove: () => void;
     onReject: () => void;
   } | null;
@@ -23,7 +22,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
   isThinking,
   onClearChat,
   onEmergencyStop,
-  pendingConfirmation,
+  pendingTradeApproval,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -31,7 +30,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking, pendingConfirmation]);
+  }, [messages, isThinking, pendingTradeApproval]);
 
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
@@ -48,26 +47,22 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
     }
   }, []);
 
-  const latestMessageWithPlan = [...messages].reverse().find((m) => m.planStatus || m.thoughtProcess);
-  const planStatus: PlanStatus | undefined = latestMessageWithPlan?.planStatus;
-  const thoughtProcess: ThoughtProcess | undefined = latestMessageWithPlan?.thoughtProcess;
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
       {/* Minimalist Header */}
       <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-3 text-white flex items-center justify-between shadow-md">
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/20">
-            <Zap className="w-4 h-4 text-white" />
+          <div className="p-1.5 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/20">
+            <LineChart className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="font-extrabold text-xs tracking-wider bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">
-              VORTEXIS Ultra-Agent
+            <h1 className="font-extrabold text-xs tracking-wider bg-gradient-to-r from-white via-slate-200 to-emerald-400 bg-clip-text text-transparent">
+              VORTEXIS Trading Copilot
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={`h-1.5 w-1.5 rounded-full ${isThinking ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`}></span>
               <span className="text-[9px] text-slate-400 font-medium">
-                {isThinking ? 'Executing Canvas/Web Loop...' : 'SenseNova 6.8 Ready'}
+                {isThinking ? 'Analyzing Chart & Order...' : 'SenseNova 6.8 Vision Ready'}
               </span>
             </div>
           </div>
@@ -108,15 +103,12 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
         currentDomain={currentDomain}
       />
 
-      {/* Dynamic Multi-Step Execution Progress Tracker */}
-      <ExecutionTracker planStatus={planStatus} thoughtProcess={thoughtProcess} isThinking={isThinking} />
-
-      {/* Risky Action Confirmation Card */}
-      {pendingConfirmation && (
-        <ConfirmationCard
-          warningMessage={pendingConfirmation.warningMessage}
-          onApprove={pendingConfirmation.onApprove}
-          onReject={pendingConfirmation.onReject}
+      {/* Mandatory Trade Approval Gate Panel */}
+      {pendingTradeApproval && (
+        <TradeApprovalCard
+          tradePlan={pendingTradeApproval.tradePlan}
+          onApprove={pendingTradeApproval.onApprove}
+          onReject={pendingTradeApproval.onReject}
         />
       )}
 
@@ -124,13 +116,13 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-6 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-950/60 border border-cyan-800/40 text-cyan-400 flex items-center justify-center shadow-lg shadow-cyan-500/10">
-              <Bot className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+              <LineChart className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-200 text-sm">VORTEXIS Ultra Autonomous Web Agent</h3>
+              <h3 className="font-bold text-slate-200 text-sm">VORTEXIS Autonomous Web-Trading Copilot</h3>
               <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-                Mendukung Canvas Drag & Drop (Canva/CapCut), Shortcut Keyboard, Macro Caching, dan Security Guardrails.
+                Multi-Timeframe Vision Scanning (TradingView/Exchanges), Drawing Plotter, & Mandatory Trade Approval Gate.
               </p>
             </div>
           </div>

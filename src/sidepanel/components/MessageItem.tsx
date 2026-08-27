@@ -1,8 +1,9 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, CheckCircle2, ChevronDown, ChevronRight, Eye, MousePointerClick, ScanLine, User, Wrench, XCircle } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Bot, CheckCircle2, ChevronDown, ChevronRight, Eye, LineChart, MousePointerClick, User, Wrench, XCircle } from 'lucide-react';
 import { ChatMessage } from '../../core/types/agent';
+import { ChartVisionViewer } from './ChartVisionViewer';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -14,38 +15,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
   const getToolTitle = (name?: string) => {
     switch (name) {
-      case 'scan_interactive_tree':
-        return '📍 Memindai elemen interaktif & koordinat...';
-      case 'click_coordinate':
-        return '🖱️ Mengklik pada koordinat...';
-      case 'type_with_delay':
-        return '⌨️ Mengetik input teks...';
-      case 'scroll_and_find':
-        return '📜 Menggeser viewport halaman...';
-      case 'wait_for_condition':
-        return '⏳ Menunggu kondisi elemen selesai...';
-      case 'capture_and_inspect_vision':
-        return '📸 Menangkap screenshot layar vision...';
-      case 'extract_structured_data':
-        return '🔍 Membaca data terstruktur...';
-      case 'finish_task':
-        return '✅ Menyelesaikan tugas...';
+      case 'switch_timeframe':
+        return '⏱️ Mengubah Timeframe Chart...';
+      case 'capture_chart_vision':
+        return '📸 Menangkap Screenshot Chart Visual...';
+      case 'draw_on_chart':
+        return '🎨 Menggambar Level Teknikal / Trendline...';
+      case 'fill_order_parameters':
+        return '📝 Mengisi Parameter Order (Lot/SL/TP)...';
+      case 'request_trade_confirmation':
+        return '🛑 Menunggu Approval Order Manusia...';
+      case 'execute_confirmed_order':
+        return '🚀 Eksekusi Final Order ke Web Broker...';
       default:
-        return '🛠️ Menjalankan skill...';
-    }
-  };
-
-  const getToolIcon = (name?: string) => {
-    switch (name) {
-      case 'scan_interactive_tree':
-        return <ScanLine className="w-3.5 h-3.5 text-cyan-400" />;
-      case 'click_coordinate':
-      case 'type_with_delay':
-        return <MousePointerClick className="w-3.5 h-3.5 text-pink-400" />;
-      case 'capture_and_inspect_vision':
-        return <Eye className="w-3.5 h-3.5 text-purple-400" />;
-      default:
-        return <Wrench className="w-3.5 h-3.5 text-blue-400" />;
+        return '🛠️ Menjalankan Skill Trading...';
     }
   };
 
@@ -69,6 +52,27 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
               : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none'
           }`}
         >
+          {/* Trading Reasoning & Bias Badge */}
+          {message.thoughtProcess && (
+            <div className="mb-2 p-2 bg-slate-950/80 rounded-xl border border-slate-800/80 space-y-1 font-mono text-[10px]">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Market Bias:</span>
+                <span
+                  className={`font-bold px-1.5 py-0.5 rounded text-[9px] ${
+                    message.thoughtProcess.market_bias === 'BULLISH'
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : message.thoughtProcess.market_bias === 'BEARISH'
+                      ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                      : 'bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  {message.thoughtProcess.market_bias} ({message.thoughtProcess.timeframe_checked})
+                </span>
+              </div>
+              <div className="text-slate-300">{message.thoughtProcess.technical_reasoning}</div>
+            </div>
+          )}
+
           {message.content ? (
             <div className="prose prose-invert prose-xs leading-relaxed max-w-none break-words">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
@@ -83,7 +87,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
                 className="w-full flex items-center justify-between font-mono text-[10px] text-cyan-300 hover:text-cyan-200 transition-colors"
               >
                 <span className="flex items-center gap-1.5 font-semibold">
-                  {getToolIcon(message.toolCall.name)}
+                  <LineChart className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{getToolTitle(message.toolCall.name)}</span>
                 </span>
                 {showToolDetails ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -104,20 +108,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
                         <XCircle className="w-3 h-3 text-rose-400 shrink-0 mt-0.5" />
                       )}
                       <span className={message.toolResult.success ? 'text-emerald-300' : 'text-rose-300'}>
-                        {message.toolResult.error || 'Eksekusi skill berhasil.'}
+                        {message.toolResult.error || 'Eksekusi trading tool berhasil.'}
                       </span>
                     </div>
                   )}
 
                   {message.toolResult?.screenshotUrl && (
-                    <div className="mt-2">
-                      <span className="text-[10px] text-slate-400 block mb-1 font-sans">Screenshot Tab Preview:</span>
-                      <img
-                        src={message.toolResult.screenshotUrl}
-                        alt="Screenshot Preview"
-                        className="rounded-lg border border-slate-700 shadow-md max-h-48 object-cover w-full"
-                      />
-                    </div>
+                    <ChartVisionViewer
+                      imageUrl={message.toolResult.screenshotUrl}
+                      timestamp={message.timestamp}
+                    />
                   )}
                 </div>
               )}

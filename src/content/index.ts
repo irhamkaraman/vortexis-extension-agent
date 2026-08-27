@@ -1,32 +1,23 @@
 import { IPCMessage } from '../core/types/messages';
 import { PointerSimulator } from '../modules/canvas-driver/PointerSimulator';
 import { CoordinateDriver } from '../modules/dom-driver/CoordinateDriver';
+import { CanvasDrawingDriver } from '../modules/trading/CanvasDrawingDriver';
+import { OrderExecutionManager } from '../modules/trading/OrderExecutionManager';
 
 console.log('[VORTEXIS] Content Script loaded.');
 
 chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse) => {
   try {
     switch (message.type) {
-      case 'SCAN_INTERACTIVE_TREE': {
-        const elements = CoordinateDriver.scanInteractiveTree();
-        sendResponse({ success: true, elements });
-        break;
-      }
-
-      case 'CLICK_COORDINATE': {
-        const res = CoordinateDriver.clickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
+      case 'SWITCH_TIMEFRAME': {
+        const res = CanvasDrawingDriver.switchTimeframe(message.payload.timeframe);
         sendResponse(res);
         break;
       }
 
-      case 'DOUBLE_CLICK_COORDINATE': {
-        const res = PointerSimulator.doubleClickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
-        sendResponse(res);
-        break;
-      }
-
-      case 'DRAG_AND_DROP': {
-        const res = PointerSimulator.dragAndDrop(
+      case 'DRAW_ON_CHART': {
+        const res = CanvasDrawingDriver.drawOnChart(
+          message.payload.toolName,
           message.payload.startX,
           message.payload.startY,
           message.payload.endX,
@@ -36,8 +27,31 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
         break;
       }
 
-      case 'SEND_HOTKEYS': {
-        const res = PointerSimulator.sendHotkeys(message.payload.keys);
+      case 'FILL_ORDER_PARAMETERS': {
+        const res = OrderExecutionManager.fillOrderParameters(
+          message.payload.side,
+          message.payload.lotSize,
+          message.payload.sl,
+          message.payload.tp
+        );
+        sendResponse(res);
+        break;
+      }
+
+      case 'EXECUTE_CONFIRMED_ORDER': {
+        const res = OrderExecutionManager.executeConfirmedOrder(message.payload.buttonSelector);
+        sendResponse(res);
+        break;
+      }
+
+      case 'SCAN_INTERACTIVE_TREE': {
+        const elements = CoordinateDriver.scanInteractiveTree();
+        sendResponse({ success: true, elements });
+        break;
+      }
+
+      case 'CLICK_COORDINATE': {
+        const res = CoordinateDriver.clickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
         sendResponse(res);
         break;
       }
@@ -56,19 +70,6 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
 
       case 'SCROLL_AND_FIND': {
         const res = CoordinateDriver.scrollAndFind(message.payload.direction, message.payload.amount);
-        sendResponse(res);
-        break;
-      }
-
-      case 'WAIT_FOR_CONDITION': {
-        CoordinateDriver.waitForCondition(message.payload.wait_ms, message.payload.selector).then((res) => {
-          sendResponse(res);
-        });
-        return true;
-      }
-
-      case 'INSPECT_CANVAS_LAYERS': {
-        const res = PointerSimulator.inspectCanvasLayers(message.payload.selector);
         sendResponse(res);
         break;
       }

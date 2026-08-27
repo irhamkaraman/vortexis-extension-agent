@@ -26,34 +26,32 @@ export interface SenseNovaResponseFormat {
 }
 
 export class ActionParser {
-  public static parseSuperAgentResponse(rawResponse: string): any {
+  public static parseTradingAgentResponse(rawResponse: string): any {
     const cleanedJson = this.extractCleanJson(rawResponse);
 
     try {
       const parsed = JSON.parse(cleanedJson);
-      return this.validateSuperAgentFormat(parsed);
+      return this.validateTradingFormat(parsed);
     } catch {
       return {
         thought_process: {
-          current_observation: 'Parsing fallback text response',
-          evaluation: 'Direct response',
-          remaining_goal: 'Complete turn',
-          is_dangerous_action: false,
-          requires_confirmation: false,
-        },
-        plan_status: {
-          current_step: 1,
-          total_steps: 1,
-          step_description: 'Conversational response',
+          market_bias: 'NEUTRAL',
+          timeframe_checked: 'Current',
+          technical_reasoning: rawResponse.substring(0, 150),
+          risk_reward_ratio: '1:2',
         },
         is_goal_achieved: true,
-        next_action: {
+        next_step: {
           tool_name: 'finish_task',
           params: {},
         },
-        message_to_user: rawResponse,
+        live_status_message: rawResponse,
       };
     }
+  }
+
+  public static parseSuperAgentResponse(rawResponse: string): any {
+    return this.parseTradingAgentResponse(rawResponse);
   }
 
   public static parseChatResponse(rawResponse: string): SenseNovaResponseFormat {
@@ -97,60 +95,60 @@ export class ActionParser {
     return cleaned;
   }
 
-  private static validateSuperAgentFormat(obj: any): any {
+  private static validateTradingFormat(obj: any): any {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error('Parsed LLM response is not an object.');
+      throw new Error('Parsed response is not an object.');
     }
 
     const thought_process = {
-      current_observation: String(obj.thought_process?.current_observation || 'Observing state'),
-      evaluation: String(obj.thought_process?.evaluation || 'Evaluating step'),
-      remaining_goal: String(obj.thought_process?.remaining_goal || 'Processing goal'),
-      is_dangerous_action: Boolean(obj.thought_process?.is_dangerous_action ?? false),
-      requires_confirmation: Boolean(obj.thought_process?.requires_confirmation ?? false),
+      market_bias: (obj.thought_process?.market_bias as any) || 'NEUTRAL',
+      timeframe_checked: String(obj.thought_process?.timeframe_checked || '15M'),
+      technical_reasoning: String(obj.thought_process?.technical_reasoning || 'Menganalisis chart visual...'),
+      risk_reward_ratio: String(obj.thought_process?.risk_reward_ratio || '1:2'),
     };
 
-    const plan_status = {
-      current_step: Number(obj.plan_status?.current_step || 1),
-      total_steps: Number(obj.plan_status?.total_steps || 1),
-      step_description: String(obj.plan_status?.step_description || 'Executing action'),
-    };
+    const trade_signal = obj.trade_signal
+      ? {
+          pair: String(obj.trade_signal.pair || 'CHART'),
+          action_type: (obj.trade_signal.action_type as any) || 'HOLD',
+          entry_price: String(obj.trade_signal.entry_price || '0'),
+          stop_loss: String(obj.trade_signal.stop_loss || '0'),
+          take_profit: String(obj.trade_signal.take_profit || '0'),
+          risk_percentage: String(obj.trade_signal.risk_percentage || '1%'),
+        }
+      : undefined;
 
-    const is_goal_achieved = Boolean(obj.is_goal_achieved ?? false);
+    const next_step_obj = obj.next_step || obj.next_action;
+    const rawToolName = String(next_step_obj?.tool_name || 'finish_task');
 
     const validTools = new Set([
+      'switch_timeframe',
+      'capture_chart_vision',
+      'draw_on_chart',
+      'fill_order_parameters',
+      'request_trade_confirmation',
+      'execute_confirmed_order',
       'scan_interactive_tree',
       'click_coordinate',
-      'double_click_coordinate',
-      'drag_and_drop_element',
-      'trigger_keyboard_shortcut',
       'type_with_delay',
       'scroll_and_find',
-      'wait_for_condition',
-      'inspect_canvas_layers',
-      'capture_and_inspect_vision',
       'extract_structured_data',
-      'request_user_confirmation',
-      'save_action_macro',
       'finish_task',
     ]);
 
-    const rawToolName = String(obj.next_action?.tool_name || 'finish_task');
     const tool_name = validTools.has(rawToolName) ? (rawToolName as ToolName) : 'finish_task';
 
-    const next_action = {
+    const next_step = {
       tool_name,
-      params: obj.next_action?.params || {},
+      params: next_step_obj?.params || {},
     };
-
-    const message_to_user = String(obj.message_to_user || obj.reply || 'Processing goal...');
 
     return {
       thought_process,
-      plan_status,
-      is_goal_achieved,
-      next_action,
-      message_to_user,
+      trade_signal,
+      is_goal_achieved: Boolean(obj.is_goal_achieved ?? false),
+      next_step,
+      live_status_message: String(obj.live_status_message || obj.message_to_user || 'Menganalisis pergerakan pasar...'),
     };
   }
 }

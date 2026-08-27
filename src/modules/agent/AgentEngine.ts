@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { ActionParser, SenseNovaResponseFormat } from './ActionParser';
-import { SUPER_AGENT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
+import { TRADING_COPILOT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
 
 export class AgentEngine {
   private openai: OpenAI;
@@ -21,7 +21,7 @@ export class AgentEngine {
   ): Promise<SenseNovaResponseFormat> {
     try {
       const messages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [
-        { role: 'system', content: SUPER_AGENT_SYSTEM_PROMPT },
+        { role: 'system', content: TRADING_COPILOT_SYSTEM_PROMPT },
         ...chatHistory,
       ];
 
