@@ -11,6 +11,7 @@ export class BrowserAgent {
   private status: AgentStatus = 'idle';
   private currentPlan?: AgentGoalPlan;
   private logs: AgentExecutionLog[] = [];
+  private summaryResult: string = '';
   private onStateChangeCallback?: (status: AgentStatus, log: AgentExecutionLog) => void;
 
   constructor(llm: ILanguageModel, ragStore: IVectorStore, domExecutor: IDOMExecutor) {
@@ -35,8 +36,13 @@ export class BrowserAgent {
     return this.currentPlan;
   }
 
+  public getSummaryResult(): string {
+    return this.summaryResult;
+  }
+
   public async runGoal(goal: string, targetTabId?: number): Promise<void> {
-    this.setStatus('analyzing');
+    this.status = 'analyzing';
+    this.summaryResult = '';
     this.addLog('info', `Initiating autonomous workflow for goal: "${goal}"`);
 
     try {
@@ -44,7 +50,7 @@ export class BrowserAgent {
       this.addLog('info', 'Scraping DOM interactive element hierarchy...');
       const domData = await this.domExecutor.scrapeDOM(targetTabId);
 
-      // Step 2: Auto ingest tab into RAG if store is empty
+      // Step 2: Auto ingest tab into RAG store
       this.addLog('info', 'Querying in-memory RAG context store...');
       await this.ragStore.ingestDocument({
         url: domData.url,
@@ -91,8 +97,10 @@ export class BrowserAgent {
 
       this.addLog('success', `Plan generated successfully: ${structuredPlan.steps.length} steps planned.`);
 
-      // Step 4: Execute actions loop
+      // Step 4: Execute actions loop with step-by-step delays for visual feedback
       this.setStatus('executing');
+      const extractedInformation: string[] = [];
+
       for (let i = 0; i < actionSteps.length; i++) {
         if (!this.currentPlan) break;
         this.currentPlan.currentStepIndex = i;
@@ -101,11 +109,16 @@ export class BrowserAgent {
         step.status = 'running';
         this.addLog('info', `Executing Step ${i + 1}/${actionSteps.length}: [${step.type}] ${step.description}`);
 
+        // Visual delay before action to let user observe current target
         if (step.selector) {
           await this.domExecutor.highlightElement(step.selector, targetTabId);
+          await new Promise((r) => setTimeout(r, 1000));
         }
 
         const res = await this.domExecutor.executeAction(step, targetTabId);
+
+        // Visual delay after action
+        await new Promise((r) => setTimeout(r, 800));
 
         if (step.selector) {
           await this.domExecutor.clearHighlight(targetTabId);
@@ -113,6 +126,9 @@ export class BrowserAgent {
 
         if (res.success) {
           step.status = 'success';
+          if (res.result) {
+            extractedInformation.push(`Step ${i + 1} (${step.type}): ${res.result}`);
+          }
           this.addLog('success', `Step ${i + 1} Succeeded: ${res.result || 'Done'}`);
         } else {
           step.status = 'failed';
@@ -121,13 +137,28 @@ export class BrowserAgent {
           this.setStatus('failed');
           return;
         }
-
-        // Brief delay between steps
-        await new Promise((r) => setTimeout(r, 600));
       }
 
+      // Step 5: Generate Final Analysis Rangkuman
+      this.addLog('info', 'Synthesizing final analysis summary from extracted insights...');
+      const finalPrompt = `
+Goal: ${goal}
+Extracted Information:
+${extractedInformation.join('\n')}
+RAG Page Context:
+${ragContextText.substring(0, 800)}
+
+Please summarize the key findings and page analysis concisely in Bahasa Indonesia.
+`.trim();
+
+      const finalSummary = await this.llm.generateCompletion(
+        finalPrompt,
+        'You are VORTEXIS AI. Provide a concise, clear, and professional summary of the web page analysis in Bahasa Indonesia.'
+      );
+
+      this.summaryResult = finalSummary;
       this.setStatus('completed');
-      this.addLog('success', 'Autonomous goal execution finished successfully!');
+      this.addLog('success', 'Autonomous goal execution and page analysis finished successfully!');
     } catch (err: any) {
       this.setStatus('failed');
       const msg = err instanceof Error ? err.message : String(err);

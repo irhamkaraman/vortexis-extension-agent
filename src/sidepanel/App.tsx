@@ -5,6 +5,7 @@ import { BrowserAgent } from '../modules/agent/BrowserAgent';
 import { SenseNovaClient } from '../modules/ai/SenseNovaClient';
 import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
 import { ActionControls } from './components/ActionControls';
+import { AnalysisSummary } from './components/AnalysisSummary';
 import { Header } from './components/Header';
 import { RAGStatusBadge } from './components/RAGStatusBadge';
 import { TerminalLogs } from './components/TerminalLogs';
@@ -23,6 +24,7 @@ export const App: React.FC = () => {
   const [isIngesting, setIsIngesting] = useState<boolean>(false);
   const [docsCount, setDocsCount] = useState<number>(0);
   const [chunksCount, setChunksCount] = useState<number>(0);
+  const [summaryText, setSummaryText] = useState<string>('');
 
   useEffect(() => {
     // Load stored settings if available
@@ -38,6 +40,7 @@ export const App: React.FC = () => {
     agent.setOnStateChange((newStatus, log) => {
       setStatus(newStatus);
       setLogs((prev) => [...prev, log]);
+      setSummaryText(agent.getSummaryResult());
     });
   }, []);
 
@@ -87,19 +90,21 @@ export const App: React.FC = () => {
 
   const handleRunGoal = async () => {
     if (!goal.trim()) return;
+    setSummaryText('');
     await agent.runGoal(goal);
   };
 
   const handleReset = () => {
     setLogs([]);
     setStatus('idle');
+    setSummaryText('');
   };
 
   return (
     <div className="w-full h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-hidden">
       <Header apiKey={apiKey} onApiKeyChange={handleApiKeyChange} />
 
-      <main className="flex-1 p-3 flex flex-col gap-3 overflow-hidden">
+      <main className="flex-1 p-3 flex flex-col gap-3 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
         <RAGStatusBadge
           documentsCount={docsCount}
           chunksCount={chunksCount}
@@ -114,6 +119,8 @@ export const App: React.FC = () => {
           onReset={handleReset}
           status={status}
         />
+
+        <AnalysisSummary plan={agent.getCurrentPlan()} summaryText={summaryText} />
 
         <TerminalLogs logs={logs} />
       </main>
