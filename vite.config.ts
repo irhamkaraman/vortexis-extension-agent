@@ -2,13 +2,27 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+function copyManifestPlugin(): Plugin {
+  return {
+    name: 'copy-manifest-plugin',
+    closeBundle() {
+      const srcManifest = resolve(__dirname, 'src/manifest.json');
+      const destManifest = resolve(__dirname, 'dist/manifest.json');
+      if (fs.existsSync(srcManifest)) {
+        fs.copyFileSync(srcManifest, destManifest);
+      }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), copyManifestPlugin()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
