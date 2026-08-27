@@ -1,10 +1,10 @@
-export type AgentStatus = 'idle' | 'analyzing' | 'planning' | 'executing' | 'completed' | 'failed';
+export type Role = 'user' | 'assistant' | 'system';
 
-export type ActionType = 'CLICK' | 'TYPE' | 'NAVIGATE' | 'SCROLL' | 'WAIT' | 'EXTRACT' | 'FINISH';
+export type AgentStatus = 'idle' | 'analyzing' | 'planning' | 'executing' | 'completed' | 'failed';
 
 export interface ActionStep {
   id: string;
-  type: ActionType;
+  type: string;
   selector?: string;
   value?: string;
   url?: string;
@@ -29,12 +29,49 @@ export interface AgentExecutionLog {
   details?: Record<string, unknown>;
 }
 
-export interface AgentState {
-  status: AgentStatus;
-  currentGoal?: string;
-  plan?: AgentGoalPlan;
-  logs: AgentExecutionLog[];
-  apiKey: string;
-  model: string;
-  ragEnabled: boolean;
+export interface ToolCallParams {
+  x?: number;
+  y?: number;
+  text?: string;
+  selector?: string;
+  direction?: 'up' | 'down';
+  amount?: number;
+  query?: string;
+}
+
+export type ToolName =
+  | 'get_dom_elements'
+  | 'click_coordinate'
+  | 'type_text'
+  | 'scroll_page'
+  | 'capture_screen'
+  | 'extract_page_content';
+
+export interface ToolCall {
+  name: ToolName;
+  parameters: ToolCallParams;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: Role;
+  content: string;
+  thought?: string;
+  toolCall?: ToolCall;
+  toolResult?: {
+    success: boolean;
+    data?: any;
+    error?: string;
+    screenshotUrl?: string;
+  };
+  timestamp: string;
+}
+
+export interface SenseNovaResponseFormat {
+  thought?: string;
+  tool_call?: {
+    name: ToolName;
+    parameters: ToolCallParams;
+  };
+  reply?: string;
 }

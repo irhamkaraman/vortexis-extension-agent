@@ -1,18 +1,20 @@
 import { ActionStep } from './agent';
 
 export type IPCMessageType =
+  | 'GET_INTERACTIVE_ELEMENTS'
+  | 'GET_INTERACTIVE_ELEMENTS_RESPONSE'
+  | 'CLICK_AT'
+  | 'CLICK_AT_RESPONSE'
+  | 'TYPE_AT'
+  | 'TYPE_AT_RESPONSE'
+  | 'SCROLL_PAGE'
+  | 'SCROLL_PAGE_RESPONSE'
+  | 'CAPTURE_VISIBLE_TAB'
+  | 'CAPTURE_VISIBLE_TAB_RESPONSE'
   | 'EXTRACT_DOM'
   | 'EXTRACT_DOM_RESPONSE'
-  | 'EXECUTE_ACTION'
-  | 'EXECUTE_ACTION_RESPONSE'
-  | 'HIGHLIGHT_ELEMENT'
-  | 'CLEAR_HIGHLIGHT'
-  | 'INGEST_TAB'
-  | 'INGEST_TAB_RESPONSE'
-  | 'QUERY_RAG'
-  | 'QUERY_RAG_RESPONSE'
-  | 'RUN_AGENT_GOAL'
-  | 'AGENT_STATE_UPDATE';
+  | 'CLEAR_MARKERS'
+  | 'CLEAR_MARKERS_RESPONSE';
 
 export interface DOMElementInfo {
   tagName: string;
@@ -43,16 +45,31 @@ export interface DOMScrapePayload {
   elements: DOMElementInfo[];
 }
 
+export interface InteractiveElementInfo {
+  id: number;
+  tagName: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  selector: string;
+  type?: string;
+  placeholder?: string;
+}
+
 export type IPCMessage =
-  | { type: 'EXTRACT_DOM'; payload: { tabId?: number } }
-  | { type: 'EXTRACT_DOM_RESPONSE'; payload: { success: boolean; data?: DOMScrapePayload; error?: string } }
-  | { type: 'EXECUTE_ACTION'; payload: { action: ActionStep } }
-  | { type: 'EXECUTE_ACTION_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
-  | { type: 'HIGHLIGHT_ELEMENT'; payload: { selector: string } }
-  | { type: 'CLEAR_HIGHLIGHT'; payload?: Record<string, never> }
-  | { type: 'INGEST_TAB'; payload: { tabId?: number } }
-  | { type: 'INGEST_TAB_RESPONSE'; payload: { success: boolean; error?: string } }
-  | { type: 'QUERY_RAG'; payload: { query: string; limit?: number } }
-  | { type: 'QUERY_RAG_RESPONSE'; payload: { results: any[] } }
-  | { type: 'RUN_AGENT_GOAL'; payload: { goal: string; apiKey?: string } }
-  | { type: 'AGENT_STATE_UPDATE'; payload: { state: string; details?: unknown } };
+  | { type: 'GET_INTERACTIVE_ELEMENTS'; payload?: { showMarkers?: boolean } }
+  | { type: 'GET_INTERACTIVE_ELEMENTS_RESPONSE'; payload: { success: boolean; elements?: InteractiveElementInfo[]; error?: string } }
+  | { type: 'CLICK_AT'; payload: { x: number; y: number; selector?: string } }
+  | { type: 'CLICK_AT_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
+  | { type: 'TYPE_AT'; payload: { x?: number; y?: number; selector?: string; text: string } }
+  | { type: 'TYPE_AT_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
+  | { type: 'SCROLL_PAGE'; payload: { direction?: 'up' | 'down'; amount?: number } }
+  | { type: 'SCROLL_PAGE_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
+  | { type: 'CAPTURE_VISIBLE_TAB'; payload?: Record<string, never> }
+  | { type: 'CAPTURE_VISIBLE_TAB_RESPONSE'; payload: { success: boolean; dataUrl?: string; error?: string } }
+  | { type: 'EXTRACT_DOM'; payload?: Record<string, never> }
+  | { type: 'EXTRACT_DOM_RESPONSE'; payload: { success: boolean; title?: string; url?: string; cleanText?: string; error?: string } }
+  | { type: 'CLEAR_MARKERS'; payload?: Record<string, never> }
+  | { type: 'CLEAR_MARKERS_RESPONSE'; payload: { success: boolean } };

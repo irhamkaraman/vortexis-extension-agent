@@ -14,76 +14,75 @@ export interface ActionGoalPlanSchema {
   steps: ActionStepSchema[];
 }
 
+export interface SenseNovaResponseFormat {
+  thought?: string;
+  tool_call?: {
+    name: 'get_dom_elements' | 'click_coordinate' | 'type_text' | 'scroll_page' | 'capture_screen' | 'extract_page_content';
+    parameters: Record<string, any>;
+  };
+  reply?: string;
+}
+
 export class ActionParser {
-  /**
-   * Safely parses raw LLM text response into validated ActionGoalPlanSchema.
-   * Handles markdown code blocks, escaped JSON strings, and missing fields.
-   */
-  public static parsePlan(rawResponse: string): ActionGoalPlanSchema {
+  public static parseChatResponse(rawResponse: string): SenseNovaResponseFormat {
     const cleanedJson = this.extractCleanJson(rawResponse);
-    
+
     try {
       const parsed = JSON.parse(cleanedJson);
-      return this.validateAndNormalizePlan(parsed);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Failed to parse AI action response: ${message}. Raw: ${rawResponse.substring(0, 150)}...`);
+      return this.validateResponseFormat(parsed);
+    } catch {
+      return {
+        thought: 'Fallback text response',
+        reply: rawResponse,
+      };
+    }
+  }
+
+  public static parsePlan(rawResponse: string): ActionGoalPlanSchema {
+    const cleanedJson = this.extractCleanJson(rawResponse);
+    try {
+      const parsed = JSON.parse(cleanedJson);
+      return {
+        goal: parsed.goal || 'Goal',
+        summary: parsed.summary || 'Summary',
+        steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+      };
+    } catch {
+      return { goal: '', summary: '', steps: [] };
     }
   }
 
   private static extractCleanJson(text: string): string {
     let cleaned = text.trim();
-
-    // Strip markdown code fences if present (```json ... ``` or ``` ...)
     const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
     if (codeBlockMatch && codeBlockMatch[1]) {
       cleaned = codeBlockMatch[1].trim();
     }
-
-    // Find first '{' and last '}'
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
-
     if (firstBrace !== -1 && lastBrace > firstBrace) {
       cleaned = cleaned.substring(firstBrace, lastBrace + 1);
     }
-
     return cleaned;
   }
 
-  private static validateAndNormalizePlan(obj: any): ActionGoalPlanSchema {
+  private static validateResponseFormat(obj: any): SenseNovaResponseFormat {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error('Parsed result is not an object.');
+      return { reply: String(obj || '') };
     }
+    const result: SenseNovaResponseFormat = {};
+    if (obj.thought) result.thought = String(obj.thought);
+    if (obj.reply) result.reply = String(obj.reply);
 
-    const goal = String(obj.goal || 'Autonomous Web Action');
-    const summary = String(obj.summary || 'Executing sequence of autonomous DOM steps.');
-
-    if (!Array.isArray(obj.steps)) {
-      throw new Error('Action plan missing required "steps" array.');
+    if (obj.tool_call && typeof obj.tool_call === 'object') {
+      const validTools = new Set(['get_dom_elements', 'click_coordinate', 'type_text', 'scroll_page', 'capture_screen', 'extract_page_content']);
+      if (validTools.has(obj.tool_call.name)) {
+        result.tool_call = {
+          name: obj.tool_call.name,
+          parameters: obj.tool_call.parameters || {},
+        };
+      }
     }
-
-    const validTypes = new Set(['CLICK', 'TYPE', 'NAVIGATE', 'SCROLL', 'WAIT', 'EXTRACT', 'FINISH']);
-
-    const steps: ActionStepSchema[] = obj.steps.map((step: any, index: number) => {
-      const rawType = String(step.type || '').toUpperCase();
-      const type = validTypes.has(rawType) ? (rawType as ActionStepSchema['type']) : 'WAIT';
-
-      return {
-        id: step.id || `step-${index + 1}`,
-        type,
-        selector: step.selector ? String(step.selector) : undefined,
-        value: step.value ? String(step.value) : undefined,
-        url: step.url ? String(step.url) : undefined,
-        description: String(step.description || `Step ${index + 1}: ${type}`),
-        thoughtProcess: String(step.thoughtProcess || step.thought || 'Analyzing context to execute action.'),
-      };
-    });
-
-    return {
-      goal,
-      summary,
-      steps,
-    };
+    return result;
   }
 }

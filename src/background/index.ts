@@ -1,64 +1,86 @@
-import { IDOMExecutor } from '../core/ports/IDOMExecutor';
-import { ActionStep } from '../core/types/agent';
-import { DOMScrapePayload, IPCMessage } from '../core/types/messages';
+import { InteractiveElementInfo, IPCMessage } from '../core/types/messages';
 
 console.log('[VORTEXIS] Background Service Worker initialized.');
 
-// Side Panel automatic open on action click
 if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
     console.warn('[VORTEXIS] Side panel behavior set warning:', err);
   });
 }
 
-export class ExtensionDOMExecutor implements IDOMExecutor {
-  public async scrapeDOM(tabId?: number): Promise<DOMScrapePayload> {
+export class BackgroundToolExecutor {
+  public async getInteractiveElements(tabId?: number): Promise<InteractiveElementInfo[]> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) throw new Error('No active Chrome tab found.');
 
     await this.ensureContentScriptInjected(targetTabId);
 
-    const res = await this.sendMessageToTab<DOMScrapePayload>(targetTabId, {
-      type: 'EXTRACT_DOM',
-      payload: { tabId: targetTabId },
+    const res = await this.sendMessageToTab<{ success: boolean; elements: InteractiveElementInfo[] }>(targetTabId, {
+      type: 'GET_INTERACTIVE_ELEMENTS',
+      payload: { showMarkers: true },
     });
 
-    return res;
+    return res.elements || [];
   }
 
-  public async executeAction(action: ActionStep, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+  public async clickAt(x: number, y: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return { success: false, error: 'No active Chrome tab found.' };
 
     await this.ensureContentScriptInjected(targetTabId);
 
-    return await this.sendMessageToTab<{ success: boolean; result?: string; error?: string }>(targetTabId, {
-      type: 'EXECUTE_ACTION',
-      payload: { action },
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'CLICK_AT',
+      payload: { x, y, selector },
     });
   }
 
-  public async highlightElement(selector: string, tabId?: number): Promise<void> {
+  public async typeAt(text: string, x?: number, y?: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return;
+    if (!targetTabId) return { success: false, error: 'No active Chrome tab found.' };
 
     await this.ensureContentScriptInjected(targetTabId);
 
-    await this.sendMessageToTab(targetTabId, {
-      type: 'HIGHLIGHT_ELEMENT',
-      payload: { selector },
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'TYPE_AT',
+      payload: { x, y, selector, text },
     });
   }
 
-  public async clearHighlight(tabId?: number): Promise<void> {
+  public async scrollPage(direction: 'up' | 'down' = 'down', amount: number = 500, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return;
+    if (!targetTabId) return { success: false, error: 'No active Chrome tab found.' };
 
     await this.ensureContentScriptInjected(targetTabId);
 
-    await this.sendMessageToTab(targetTabId, {
-      type: 'CLEAR_HIGHLIGHT',
-      payload: {},
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'SCROLL_PAGE',
+      payload: { direction, amount },
+    });
+  }
+
+  public async captureVisibleTab(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.captureVisibleTab(chrome.windows.WINDOW_ID_CURRENT, { format: 'png' }, (dataUrl) => {
+        if (chrome.runtime.lastError) {
+          return reject(new Error(chrome.runtime.lastError.message));
+        }
+        if (!dataUrl) {
+          return reject(new Error('Failed to capture visible tab screenshot.'));
+        }
+        resolve(dataUrl);
+      });
+    });
+  }
+
+  public async extractPageContent(tabId?: number): Promise<{ title: string; url: string; cleanText: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) throw new Error('No active Chrome tab found.');
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'EXTRACT_DOM',
     });
   }
 
@@ -81,7 +103,7 @@ export class ExtensionDOMExecutor implements IDOMExecutor {
         files: ['src/content/index.js'],
       });
     } catch {
-      // Script might already be injected, ignore duplicate injection errors silently
+      // Ignore duplicate injection errors
     }
   }
 

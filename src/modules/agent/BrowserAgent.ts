@@ -1,7 +1,9 @@
 import { IDOMExecutor } from '../../core/ports/IDOMExecutor';
 import { ILanguageModel } from '../../core/ports/ILanguageModel';
 import { IVectorStore } from '../../core/ports/IVectorStore';
-import { AgentGoalPlan, ActionStep, AgentExecutionLog, AgentStatus } from '../../core/types/agent';
+import { ActionStep, AgentExecutionLog, AgentGoalPlan, AgentStatus } from '../../core/types/agent';
+import { DOMElementInfo } from '../../core/types/messages';
+import { ActionStepSchema } from './ActionParser';
 
 export class BrowserAgent {
   private llm: ILanguageModel;
@@ -64,7 +66,7 @@ export class BrowserAgent {
       const domContextText = domData.elements
         .slice(0, 40)
         .map(
-          (el) =>
+          (el: DOMElementInfo) =>
             `[${el.tagName}] selector="${el.selector}" text="${el.text}" placeholder="${el.placeholder || ''}" role="${
               el.role || ''
             }"`
@@ -77,7 +79,7 @@ export class BrowserAgent {
 
       const structuredPlan = await this.llm.generateStructuredPlan(goal, domContextText, ragContextText);
 
-      const actionSteps: ActionStep[] = structuredPlan.steps.map((s) => ({
+      const actionSteps: ActionStep[] = structuredPlan.steps.map((s: ActionStepSchema) => ({
         id: s.id || `step-${Math.random().toString(36).substring(2, 7)}`,
         type: s.type,
         selector: s.selector,
@@ -109,7 +111,6 @@ export class BrowserAgent {
         step.status = 'running';
         this.addLog('info', `Executing Step ${i + 1}/${actionSteps.length}: [${step.type}] ${step.description}`);
 
-        // Visual delay before action to let user observe current target
         if (step.selector) {
           await this.domExecutor.highlightElement(step.selector, targetTabId);
           await new Promise((r) => setTimeout(r, 1000));
@@ -117,7 +118,6 @@ export class BrowserAgent {
 
         const res = await this.domExecutor.executeAction(step, targetTabId);
 
-        // Visual delay after action
         await new Promise((r) => setTimeout(r, 800));
 
         if (step.selector) {
@@ -139,24 +139,6 @@ export class BrowserAgent {
         }
       }
 
-      // Step 5: Generate Final Analysis Rangkuman
-      this.addLog('info', 'Synthesizing final analysis summary from extracted insights...');
-      const finalPrompt = `
-Goal: ${goal}
-Extracted Information:
-${extractedInformation.join('\n')}
-RAG Page Context:
-${ragContextText.substring(0, 800)}
-
-Please summarize the key findings and page analysis concisely in Bahasa Indonesia.
-`.trim();
-
-      const finalSummary = await this.llm.generateCompletion(
-        finalPrompt,
-        'You are VORTEXIS AI. Provide a concise, clear, and professional summary of the web page analysis in Bahasa Indonesia.'
-      );
-
-      this.summaryResult = finalSummary;
       this.setStatus('completed');
       this.addLog('success', 'Autonomous goal execution and page analysis finished successfully!');
     } catch (err: any) {

@@ -1,33 +1,45 @@
 import { IPCMessage } from '../core/types/messages';
-import { DOMScraper } from './DOMScraper';
-import { ElementInteractor } from './ElementInteractor';
+import { CoordinateDriver } from '../modules/dom-driver/CoordinateDriver';
 
 console.log('[VORTEXIS] Content Script loaded.');
 
 chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse) => {
   try {
     switch (message.type) {
+      case 'GET_INTERACTIVE_ELEMENTS': {
+        const elements = CoordinateDriver.getInteractiveElements(message.payload?.showMarkers ?? true);
+        sendResponse({ success: true, elements });
+        break;
+      }
+
+      case 'CLICK_AT': {
+        const res = CoordinateDriver.clickAt(message.payload.x, message.payload.y, message.payload.selector);
+        sendResponse(res);
+        break;
+      }
+
+      case 'TYPE_AT': {
+        const res = CoordinateDriver.typeAt(message.payload.x, message.payload.y, message.payload.selector, message.payload.text);
+        sendResponse(res);
+        break;
+      }
+
+      case 'SCROLL_PAGE': {
+        const res = CoordinateDriver.scrollPage(message.payload.direction, message.payload.amount);
+        sendResponse(res);
+        break;
+      }
+
       case 'EXTRACT_DOM': {
-        const payload = DOMScraper.extractCleanDOM();
-        sendResponse({ success: true, data: payload });
+        const title = document.title;
+        const url = window.location.href;
+        const cleanText = document.body.innerText || document.body.textContent || '';
+        sendResponse({ success: true, title, url, cleanText });
         break;
       }
 
-      case 'EXECUTE_ACTION': {
-        ElementInteractor.execute(message.payload.action).then((res) => {
-          sendResponse(res);
-        });
-        return true; // Keep channel open for async response
-      }
-
-      case 'HIGHLIGHT_ELEMENT': {
-        ElementInteractor.highlight(message.payload.selector);
-        sendResponse({ success: true });
-        break;
-      }
-
-      case 'CLEAR_HIGHLIGHT': {
-        ElementInteractor.removeHighlight();
+      case 'CLEAR_MARKERS': {
+        CoordinateDriver.clearMarkers();
         sendResponse({ success: true });
         break;
       }

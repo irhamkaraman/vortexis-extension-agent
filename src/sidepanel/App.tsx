@@ -1,33 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { ExtensionDOMExecutor } from '../background';
-import { AgentExecutionLog, AgentStatus } from '../core/types/agent';
-import { BrowserAgent } from '../modules/agent/BrowserAgent';
+import { BackgroundToolExecutor } from '../background';
+import { ChatMessage, ToolName } from '../core/types/agent';
+import { ToolRegistry } from '../modules/agent/ToolRegistry';
 import { SenseNovaClient } from '../modules/ai/SenseNovaClient';
 import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
-import { ActionControls } from './components/ActionControls';
-import { AnalysisSummary } from './components/AnalysisSummary';
+import { ChatContainer } from './components/ChatContainer';
+import { ChatInput } from './components/ChatInput';
 import { Header } from './components/Header';
-import { RAGStatusBadge } from './components/RAGStatusBadge';
-import { TerminalLogs } from './components/TerminalLogs';
 
-// Initialize core monolithic agent components
-const domExecutor = new ExtensionDOMExecutor();
+// Initialize core monolithic components
+const toolExecutor = new BackgroundToolExecutor();
 const ragStore = new BrowserRAGStore();
+const toolRegistry = new ToolRegistry(toolExecutor, ragStore);
 const senseNovaClient = new SenseNovaClient();
-const agent = new BrowserAgent(senseNovaClient, ragStore, domExecutor);
 
 export const App: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>('');
-  const [goal, setGoal] = useState<string>('');
-  const [status, setStatus] = useState<AgentStatus>('idle');
-  const [logs, setLogs] = useState<AgentExecutionLog[]>([]);
-  const [isIngesting, setIsIngesting] = useState<boolean>(false);
-  const [docsCount, setDocsCount] = useState<number>(0);
-  const [chunksCount, setChunksCount] = useState<number>(0);
-  const [summaryText, setSummaryText] = useState<string>('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isThinking, setIsThinking] = useState<boolean>(false);
 
   useEffect(() => {
-    // Load stored settings if available
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(['sensenova_api_key'], (res: Record<string, any>) => {
         if (res && typeof res.sensenova_api_key === 'string') {
@@ -36,12 +28,6 @@ export const App: React.FC = () => {
         }
       });
     }
-
-    agent.setOnStateChange((newStatus, log) => {
-      setStatus(newStatus);
-      setLogs((prev) => [...prev, log]);
-      setSummaryText(agent.getSummaryResult());
-    });
   }, []);
 
   const handleApiKeyChange = (key: string) => {
@@ -52,77 +38,145 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleIngestActiveTab = async () => {
-    setIsIngesting(true);
-    try {
-      const domData = await domExecutor.scrapeDOM();
-      await ragStore.ingestDocument({
-        url: domData.url,
-        title: domData.title,
-        text: domData.cleanText,
-      });
+  const handleSendMessage = async (text: string) => {
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
 
-      setDocsCount(ragStore.getDocumentsCount());
-      setChunksCount(ragStore.getTotalChunksCount());
-      setLogs((prev) => [
-        ...prev,
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleTimeString(),
-          level: 'success',
-          message: `Indexed tab: "${domData.title.substring(0, 30)}..." into RAG vector store.`,
-        },
-      ]);
+    setMessages((prev) => [...prev, userMsg]);
+    setIsThinking(true);
+
+    try {
+      await runAgentTurn([...messages, userMsg]);
     } catch (err: any) {
-      setLogs((prev) => [
-        ...prev,
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleTimeString(),
-          level: 'error',
-          message: `Tab RAG indexing failed: ${err.message || String(err)}`,
-        },
-      ]);
+      const errorMsg: ChatMessage = {
+        id: `msg-err-${Date.now()}`,
+        role: 'assistant',
+        content: `⚠️ System Error: ${err.message || String(err)}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
-      setIsIngesting(false);
+      setIsThinking(false);
     }
   };
 
-  const handleRunGoal = async () => {
-    if (!goal.trim()) return;
-    setSummaryText('');
-    await agent.runGoal(goal);
+  const runAgentTurn = async (chatHistory: ChatMessage[]) => {
+    const historyPayload = chatHistory.map((m) => ({
+      role: m.role,
+      content: m.content || (m.toolCall ? `Executed tool: ${m.toolCall.name}` : ''),
+    }));
+
+    const response = await senseNovaClient.generateChatTurn(historyPayload);
+
+    if (response.tool_call) {
+      const toolCall = response.tool_call;
+      const aiToolMsg: ChatMessage = {
+        id: `msg-ai-${Date.now()}`,
+        role: 'assistant',
+        content: response.reply || `Executing tool: ${toolCall.name}...`,
+        thought: response.thought,
+        toolCall,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, aiToolMsg]);
+
+      // Execute tool otonomously
+      const toolRes = await toolRegistry.executeTool(toolCall);
+
+      aiToolMsg.toolResult = toolRes;
+      setMessages((prev) => prev.map((m) => (m.id === aiToolMsg.id ? { ...m, toolResult: toolRes } : m)));
+
+      // Next agent turn with tool result feedback
+      const feedbackMsg: ChatMessage = {
+        id: `msg-sys-${Date.now()}`,
+        role: 'system',
+        content: `Tool ${toolCall.name} execution result: ${JSON.stringify(toolRes.data || toolRes.error)}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      const updatedHistory = [...chatHistory, aiToolMsg, feedbackMsg];
+      const secondTurnRes = await senseNovaClient.generateChatTurn(
+        updatedHistory.map((m) => ({ role: m.role, content: m.content }))
+      );
+
+      const finalAiMsg: ChatMessage = {
+        id: `msg-final-${Date.now()}`,
+        role: 'assistant',
+        content: secondTurnRes.reply || 'Execution complete.',
+        thought: secondTurnRes.thought,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, finalAiMsg]);
+    } else {
+      const aiMsg: ChatMessage = {
+        id: `msg-ai-${Date.now()}`,
+        role: 'assistant',
+        content: response.reply || 'Halo! Ada yang bisa saya bantu?',
+        thought: response.thought,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    }
   };
 
-  const handleReset = () => {
-    setLogs([]);
-    setStatus('idle');
-    setSummaryText('');
+  const handleTriggerQuickTool = async (toolName: ToolName) => {
+    const toolCall = { name: toolName, parameters: {} };
+    const userMsg: ChatMessage = {
+      id: `msg-quick-${Date.now()}`,
+      role: 'user',
+      content: `Trigger quick action: ${toolName}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setIsThinking(true);
+
+    try {
+      const toolRes = await toolRegistry.executeTool(toolCall);
+      const aiMsg: ChatMessage = {
+        id: `msg-res-${Date.now()}`,
+        role: 'assistant',
+        content: `Executed **${toolName}** successfully.`,
+        toolCall,
+        toolResult: toolRes,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err: any) {
+      const errorMsg: ChatMessage = {
+        id: `msg-err-${Date.now()}`,
+        role: 'assistant',
+        content: `⚠️ Failed to execute tool ${toolName}: ${err.message || String(err)}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  const handleStop = () => {
+    setIsThinking(false);
   };
 
   return (
     <div className="w-full h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-hidden">
       <Header apiKey={apiKey} onApiKeyChange={handleApiKeyChange} />
 
-      <main className="flex-1 p-3 flex flex-col gap-3 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
-        <RAGStatusBadge
-          documentsCount={docsCount}
-          chunksCount={chunksCount}
-          onIngestClick={handleIngestActiveTab}
-          isIngesting={isIngesting}
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        <ChatContainer messages={messages} isThinking={isThinking} />
+        <ChatInput
+          onSendMessage={handleSendMessage}
+          onTriggerQuickTool={handleTriggerQuickTool}
+          onStop={handleStop}
+          isThinking={isThinking}
         />
-
-        <ActionControls
-          goal={goal}
-          onGoalChange={setGoal}
-          onRunGoal={handleRunGoal}
-          onReset={handleReset}
-          status={status}
-        />
-
-        <AnalysisSummary plan={agent.getCurrentPlan()} summaryText={summaryText} />
-
-        <TerminalLogs logs={logs} />
       </main>
     </div>
   );
