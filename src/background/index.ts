@@ -70,19 +70,18 @@ export class ExtensionDOMExecutor implements IDOMExecutor {
   private async ensureContentScriptInjected(tabId: number): Promise<void> {
     if (!chrome.scripting) return;
 
-    try {
-      // Check if tab URL allows content script injection
-      const tab = await chrome.tabs.get(tabId);
-      if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
-        throw new Error('Cannot inject agent on restricted browser pages (chrome://, about:blank, etc.). Please switch to a normal web tab.');
-      }
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+      throw new Error('Cannot run agent on restricted browser pages (chrome://, about:blank, etc.). Please switch to a normal web tab.');
+    }
 
+    try {
       await chrome.scripting.executeScript({
         target: { tabId },
         files: ['src/content/index.js'],
       });
-    } catch (err: any) {
-      console.warn('[VORTEXIS] Script injection warning/fallback:', err);
+    } catch {
+      // Script might already be injected, ignore duplicate injection errors silently
     }
   }
 
