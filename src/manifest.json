@@ -14,13 +14,13 @@
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "src/background/index.ts",
+    "service_worker": "src/background/index.js",
     "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content/index.ts"],
+      "js": ["src/content/index.js"],
       "run_at": "document_idle"
     }
   ],
@@ -31,8 +31,8 @@
     "default_title": "Open VORTEXIS Panel"
   },
   "icons": {
-    "16": "public/favicon.svg",
-    "48": "public/favicon.svg",
-    "128": "public/favicon.svg"
+    "16": "favicon.svg",
+    "48": "favicon.svg",
+    "128": "favicon.svg"
   }
 }
