@@ -23,6 +23,9 @@ export class ElementInteractor {
           window.scrollBy({ top: 500, behavior: 'smooth' });
           return { success: true, result: 'Scrolled page down.' };
 
+        case 'EXTRACT':
+          return await this.extractElementContent(action.selector);
+
         case 'WAIT':
           await new Promise((r) => setTimeout(r, 1000));
           return { success: true, result: 'Waited 1 second.' };
@@ -123,5 +126,20 @@ export class ElementInteractor {
     el.dispatchEvent(changeEvt);
 
     return { success: true, result: `Typed "${value}" into element [${selector}]` };
+  }
+
+  private static async extractElementContent(selector?: string): Promise<{ success: boolean; result?: string; error?: string }> {
+    if (!selector) {
+      const mainText = document.body.innerText.substring(0, 300);
+      return { success: true, result: `Extracted page text: "${mainText}..."` };
+    }
+
+    const el = document.querySelector(selector) as HTMLElement;
+    if (!el) return { success: false, error: `Element not found for selector: ${selector}` };
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const text = (el.innerText || el.textContent || '').trim();
+
+    return { success: true, result: `Extracted text from [${selector}]: "${text}"` };
   }
 }
