@@ -6,20 +6,20 @@ console.log('[VORTEXIS] Content Script loaded.');
 chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse) => {
   try {
     switch (message.type) {
-      case 'GET_INTERACTIVE_ELEMENTS': {
-        const elements = CoordinateDriver.getInteractiveElements(message.payload?.showMarkers ?? true);
+      case 'SCAN_DOM_COORDINATES': {
+        const elements = CoordinateDriver.scanDomCoordinates();
         sendResponse({ success: true, elements });
         break;
       }
 
-      case 'CLICK_AT': {
-        const res = CoordinateDriver.clickAt(message.payload.x, message.payload.y, message.payload.selector);
+      case 'EXECUTE_CLICK_COORDINATE': {
+        const res = CoordinateDriver.executeClickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
         sendResponse(res);
         break;
       }
 
-      case 'TYPE_AT': {
-        const res = CoordinateDriver.typeAt(message.payload.x, message.payload.y, message.payload.selector, message.payload.text);
+      case 'EXECUTE_TYPE_COORDINATE': {
+        const res = CoordinateDriver.executeTypeCoordinate(message.payload.text, message.payload.x, message.payload.y, message.payload.selector);
         sendResponse(res);
         break;
       }
@@ -30,17 +30,11 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
         break;
       }
 
-      case 'EXTRACT_DOM': {
+      case 'GET_PAGE_CONTEXT': {
         const title = document.title;
         const url = window.location.href;
         const cleanText = document.body.innerText || document.body.textContent || '';
         sendResponse({ success: true, title, url, cleanText });
-        break;
-      }
-
-      case 'CLEAR_MARKERS': {
-        CoordinateDriver.clearMarkers();
-        sendResponse({ success: true });
         break;
       }
 

@@ -1,3 +1,5 @@
+import { ToolName } from '../../core/types/agent';
+
 export interface ActionStepSchema {
   id?: string;
   type: 'CLICK' | 'TYPE' | 'NAVIGATE' | 'SCROLL' | 'WAIT' | 'EXTRACT' | 'FINISH';
@@ -17,9 +19,9 @@ export interface ActionGoalPlanSchema {
 export interface SenseNovaResponseFormat {
   thought?: string;
   tool_call?: {
-    name: 'get_dom_elements' | 'click_coordinate' | 'type_text' | 'scroll_page' | 'capture_screen' | 'extract_page_content';
+    name: ToolName;
     parameters: Record<string, any>;
-  };
+  } | null;
   reply?: string;
 }
 
@@ -33,6 +35,7 @@ export class ActionParser {
     } catch {
       return {
         thought: 'Fallback text response',
+        tool_call: null,
         reply: rawResponse,
       };
     }
@@ -68,17 +71,27 @@ export class ActionParser {
 
   private static validateResponseFormat(obj: any): SenseNovaResponseFormat {
     if (typeof obj !== 'object' || obj === null) {
-      return { reply: String(obj || '') };
+      return { reply: String(obj || ''), tool_call: null };
     }
-    const result: SenseNovaResponseFormat = {};
-    if (obj.thought) result.thought = String(obj.thought);
-    if (obj.reply) result.reply = String(obj.reply);
+    const result: SenseNovaResponseFormat = {
+      thought: obj.thought ? String(obj.thought) : undefined,
+      reply: obj.reply ? String(obj.reply) : undefined,
+      tool_call: null,
+    };
 
-    if (obj.tool_call && typeof obj.tool_call === 'object') {
-      const validTools = new Set(['get_dom_elements', 'click_coordinate', 'type_text', 'scroll_page', 'capture_screen', 'extract_page_content']);
+    if (obj.tool_call && typeof obj.tool_call === 'object' && obj.tool_call.name) {
+      const validTools = new Set([
+        'scan_dom_coordinates',
+        'execute_click_coordinate',
+        'execute_type_coordinate',
+        'scroll_page',
+        'capture_screen',
+        'get_page_context',
+      ]);
+
       if (validTools.has(obj.tool_call.name)) {
         result.tool_call = {
-          name: obj.tool_call.name,
+          name: obj.tool_call.name as ToolName,
           parameters: obj.tool_call.parameters || {},
         };
       }

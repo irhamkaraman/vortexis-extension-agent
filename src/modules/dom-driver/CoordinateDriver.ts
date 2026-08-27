@@ -3,7 +3,10 @@ import { InteractiveElementInfo } from '../../core/types/messages';
 export class CoordinateDriver {
   private static markerContainer: HTMLDivElement | null = null;
 
-  public static getInteractiveElements(showMarkers: boolean = true): InteractiveElementInfo[] {
+  /**
+   * Skill 1: Pindai Elemen & Koordinat Bounding Box presisi
+   */
+  public static scanDomCoordinates(): InteractiveElementInfo[] {
     this.clearMarkers();
 
     const querySelector = `
@@ -15,25 +18,30 @@ export class CoordinateDriver {
     const elements = Array.from(document.querySelectorAll(querySelector));
     const interactiveList: InteractiveElementInfo[] = [];
 
-    if (showMarkers) {
-      this.markerContainer = document.createElement('div');
-      this.markerContainer.id = 'vortexis-marker-container';
-      this.markerContainer.style.position = 'absolute';
-      this.markerContainer.style.top = '0';
-      this.markerContainer.style.left = '0';
-      this.markerContainer.style.width = '100%';
-      this.markerContainer.style.height = '100%';
-      this.markerContainer.style.pointerEvents = 'none';
-      this.markerContainer.style.zIndex = '2147483647';
-      document.body.appendChild(this.markerContainer);
-    }
+    this.markerContainer = document.createElement('div');
+    this.markerContainer.id = 'vortexis-marker-container';
+    this.markerContainer.style.position = 'absolute';
+    this.markerContainer.style.top = '0';
+    this.markerContainer.style.left = '0';
+    this.markerContainer.style.width = '100%';
+    this.markerContainer.style.height = '100%';
+    this.markerContainer.style.pointerEvents = 'none';
+    this.markerContainer.style.zIndex = '2147483647';
+    document.body.appendChild(this.markerContainer);
 
     let currentId = 1;
 
     elements.forEach((el) => {
       const htmlEl = el as HTMLElement;
       const rect = htmlEl.getBoundingClientRect();
-      const isVisible = rect.width > 0 && rect.height > 0 && getComputedStyle(htmlEl).visibility !== 'hidden';
+      const style = getComputedStyle(htmlEl);
+
+      const isVisible =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== 'hidden' &&
+        style.display !== 'none' &&
+        parseFloat(style.opacity || '1') > 0;
 
       if (!isVisible) return;
 
@@ -47,20 +55,19 @@ export class CoordinateDriver {
 
       const info: InteractiveElementInfo = {
         id: currentId,
-        tagName: htmlEl.tagName.toLowerCase(),
-        text: text.substring(0, 80),
+        tag: htmlEl.tagName.toLowerCase(),
+        text: text.substring(0, 60),
         x: centerX,
         y: centerY,
         width: Math.round(rect.width),
         height: Math.round(rect.height),
         selector,
-        type: htmlEl.getAttribute('type') || undefined,
-        placeholder: htmlEl.getAttribute('placeholder') || undefined,
       };
 
       interactiveList.push(info);
 
-      if (showMarkers && this.markerContainer) {
+      // Visual Tag Marker
+      if (this.markerContainer) {
         const marker = document.createElement('div');
         marker.innerText = `${currentId}`;
         marker.style.position = 'absolute';
@@ -81,27 +88,21 @@ export class CoordinateDriver {
       currentId++;
     });
 
-    if (showMarkers) {
-      setTimeout(() => this.clearMarkers(), 3500);
-    }
-
+    setTimeout(() => this.clearMarkers(), 3000);
     return interactiveList;
   }
 
-  public static clickAt(x: number, y: number, selector?: string): { success: boolean; result?: string; error?: string } {
+  /**
+   * Skill 2: Eksekusi Klik berbasis koordinat presisi / selector
+   */
+  public static executeClickCoordinate(x: number, y: number, selector?: string): { success: boolean; result?: string; error?: string } {
     try {
       let targetEl: Element | null = null;
-
-      if (selector) {
-        targetEl = document.querySelector(selector);
-      }
+      if (selector) targetEl = document.querySelector(selector);
+      if (!targetEl) targetEl = document.elementFromPoint(x, y);
 
       if (!targetEl) {
-        targetEl = document.elementFromPoint(x, y);
-      }
-
-      if (!targetEl) {
-        return { success: false, error: `No DOM element found at point (x: ${x}, y: ${y})` };
+        return { success: false, error: `Elemen tidak ditemukan pada koordinat (x: ${x}, y: ${y})` };
       }
 
       const htmlEl = targetEl as HTMLElement;
@@ -117,36 +118,28 @@ export class CoordinateDriver {
         htmlEl.dispatchEvent(evt);
       });
 
-      return { success: true, result: `Clicked element at (x: ${x}, y: ${y})` };
+      return { success: true, result: `Mengeklik elemen pada (x: ${x}, y: ${y})` };
     } catch (err: any) {
       return { success: false, error: err.message || String(err) };
     }
   }
 
-  public static typeAt(
+  /**
+   * Skill 2 (Cont.): Eksekusi Input Teks Berbasis Koordinat
+   */
+  public static executeTypeCoordinate(
+    text: string,
     x?: number,
     y?: number,
-    selector?: string,
-    text: string = ''
+    selector?: string
   ): { success: boolean; result?: string; error?: string } {
     try {
       let targetEl: Element | null = null;
+      if (selector) targetEl = document.querySelector(selector);
+      if (!targetEl && x !== undefined && y !== undefined) targetEl = document.elementFromPoint(x, y);
+      if (!targetEl) targetEl = document.activeElement;
 
-      if (selector) {
-        targetEl = document.querySelector(selector);
-      }
-
-      if (!targetEl && x !== undefined && y !== undefined) {
-        targetEl = document.elementFromPoint(x, y);
-      }
-
-      if (!targetEl) {
-        targetEl = document.activeElement;
-      }
-
-      if (!targetEl) {
-        return { success: false, error: 'No input element target found to type text.' };
-      }
+      if (!targetEl) return { success: false, error: 'Target input tidak ditemukan.' };
 
       const inputEl = targetEl as HTMLInputElement | HTMLTextAreaElement;
       inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -156,16 +149,19 @@ export class CoordinateDriver {
       inputEl.dispatchEvent(new Event('input', { bubbles: true }));
       inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 
-      return { success: true, result: `Typed "${text}" into element.` };
+      return { success: true, result: `Mengetik "${text}" pada elemen input.` };
     } catch (err: any) {
       return { success: false, error: err.message || String(err) };
     }
   }
 
+  /**
+   * Skill 3: Scroll Navigasi Halaman
+   */
   public static scrollPage(direction: 'up' | 'down' = 'down', amount: number = 500): { success: boolean; result?: string } {
     const top = direction === 'down' ? amount : -amount;
     window.scrollBy({ top, behavior: 'smooth' });
-    return { success: true, result: `Scrolled page ${direction} by ${amount}px.` };
+    return { success: true, result: `Menggeser halaman ${direction} sebesar ${amount}px.` };
   }
 
   public static clearMarkers(): void {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, FileText, MousePointer, MoveVertical, Scan, Send, Square } from 'lucide-react';
+import { Camera, FileText, MoveVertical, Scan, Send, Square } from 'lucide-react';
 import { ToolName } from '../../core/types/agent';
 
 interface ChatInputProps {
@@ -42,33 +42,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="bg-slate-900/90 border-t border-slate-800 p-3 flex flex-col gap-2 shadow-2xl">
-      {/* Quick Action / Skill Buttons */}
+      {/* Quick Skill Action Chips */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
-        <button
-          onClick={() => onTriggerQuickTool('get_dom_elements')}
-          disabled={isThinking}
-          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-cyan-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
-        >
-          <Scan className="w-3 h-3 text-cyan-400" />
-          <span>Scan Elements</span>
-        </button>
-
         <button
           onClick={() => onTriggerQuickTool('capture_screen')}
           disabled={isThinking}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-pink-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
           <Camera className="w-3 h-3 text-pink-400" />
-          <span>Screenshot</span>
+          <span>📸 Screenshot Tab</span>
         </button>
 
         <button
-          onClick={() => onTriggerQuickTool('extract_page_content')}
+          onClick={() => onTriggerQuickTool('scan_dom_coordinates')}
           disabled={isThinking}
-          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-blue-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
+          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-cyan-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
-          <FileText className="w-3 h-3 text-blue-400" />
-          <span>Ingest RAG</span>
+          <Scan className="w-3 h-3 text-cyan-400" />
+          <span>🔍 Analisis Elemen</span>
         </button>
 
         <button
@@ -77,7 +68,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-emerald-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
         >
           <MoveVertical className="w-3 h-3 text-emerald-400" />
-          <span>Scroll</span>
+          <span>📜 Scroll Down</span>
+        </button>
+
+        <button
+          onClick={() => onTriggerQuickTool('get_page_context')}
+          disabled={isThinking}
+          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-blue-300 border border-slate-700/60 flex items-center gap-1 shrink-0 transition-colors"
+        >
+          <FileText className="w-3 h-3 text-blue-400" />
+          <span>📖 Ingest Context</span>
         </button>
       </div>
 
@@ -88,7 +88,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask VORTEXIS AI or request web actions..."
+          placeholder="Ketik instruksi bebas atau pertanyaan..."
           rows={1}
           disabled={isThinking}
           className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-3 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors resize-none disabled:opacity-50"
@@ -99,7 +99,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             type="button"
             onClick={onStop}
             className="absolute right-2 p-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition-all shadow-md"
-            title="Stop Loop"
+            title="Hentikan Eksekusi"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
           </button>

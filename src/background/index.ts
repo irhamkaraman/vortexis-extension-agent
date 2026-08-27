@@ -9,47 +9,46 @@ if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
 }
 
 export class BackgroundToolExecutor {
-  public async getInteractiveElements(tabId?: number): Promise<InteractiveElementInfo[]> {
+  public async scanDomCoordinates(tabId?: number): Promise<InteractiveElementInfo[]> {
     const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) throw new Error('No active Chrome tab found.');
+    if (!targetTabId) throw new Error('Tidak ada tab Chrome yang aktif.');
 
     await this.ensureContentScriptInjected(targetTabId);
 
     const res = await this.sendMessageToTab<{ success: boolean; elements: InteractiveElementInfo[] }>(targetTabId, {
-      type: 'GET_INTERACTIVE_ELEMENTS',
-      payload: { showMarkers: true },
+      type: 'SCAN_DOM_COORDINATES',
     });
 
     return res.elements || [];
   }
 
-  public async clickAt(x: number, y: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+  public async executeClickCoordinate(x: number, y: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'No active Chrome tab found.' };
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
 
     await this.ensureContentScriptInjected(targetTabId);
 
     return await this.sendMessageToTab(targetTabId, {
-      type: 'CLICK_AT',
+      type: 'EXECUTE_CLICK_COORDINATE',
       payload: { x, y, selector },
     });
   }
 
-  public async typeAt(text: string, x?: number, y?: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+  public async executeTypeCoordinate(text: string, x?: number, y?: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'No active Chrome tab found.' };
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
 
     await this.ensureContentScriptInjected(targetTabId);
 
     return await this.sendMessageToTab(targetTabId, {
-      type: 'TYPE_AT',
+      type: 'EXECUTE_TYPE_COORDINATE',
       payload: { x, y, selector, text },
     });
   }
 
   public async scrollPage(direction: 'up' | 'down' = 'down', amount: number = 500, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return { success: false, error: 'No active Chrome tab found.' };
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
 
     await this.ensureContentScriptInjected(targetTabId);
 
@@ -59,28 +58,28 @@ export class BackgroundToolExecutor {
     });
   }
 
-  public async captureVisibleTab(): Promise<string> {
+  public async captureScreen(): Promise<string> {
     return new Promise((resolve, reject) => {
       chrome.tabs.captureVisibleTab(chrome.windows.WINDOW_ID_CURRENT, { format: 'png' }, (dataUrl) => {
         if (chrome.runtime.lastError) {
           return reject(new Error(chrome.runtime.lastError.message));
         }
         if (!dataUrl) {
-          return reject(new Error('Failed to capture visible tab screenshot.'));
+          return reject(new Error('Gagal mengosongkan/menangkap gambar layar tab.'));
         }
         resolve(dataUrl);
       });
     });
   }
 
-  public async extractPageContent(tabId?: number): Promise<{ title: string; url: string; cleanText: string }> {
+  public async getPageContext(tabId?: number): Promise<{ title: string; url: string; cleanText: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) throw new Error('No active Chrome tab found.');
+    if (!targetTabId) throw new Error('Tidak ada tab Chrome yang aktif.');
 
     await this.ensureContentScriptInjected(targetTabId);
 
     return await this.sendMessageToTab(targetTabId, {
-      type: 'EXTRACT_DOM',
+      type: 'GET_PAGE_CONTEXT',
     });
   }
 
@@ -94,7 +93,7 @@ export class BackgroundToolExecutor {
 
     const tab = await chrome.tabs.get(tabId);
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
-      throw new Error('Cannot run agent on restricted browser pages (chrome://, about:blank, etc.). Please switch to a normal web tab.');
+      throw new Error('Tidak dapat menjalankan agent di halaman terlarang (chrome://, about:blank, dll). Harap buka tab website umum.');
     }
 
     try {
@@ -103,7 +102,7 @@ export class BackgroundToolExecutor {
         files: ['src/content/index.js'],
       });
     } catch {
-      // Ignore duplicate injection errors
+      // Ignore duplicate injection warnings
     }
   }
 
@@ -113,7 +112,7 @@ export class BackgroundToolExecutor {
         if (chrome.runtime.lastError) {
           return reject(
             new Error(
-              `${chrome.runtime.lastError.message}. Make sure you are on a normal website tab and refresh the page (F5).`
+              `${chrome.runtime.lastError.message}. Pastikan Anda berada di tab website umum dan muat ulang halaman (F5).`
             )
           );
         }

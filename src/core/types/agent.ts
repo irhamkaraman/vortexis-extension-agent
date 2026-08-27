@@ -29,27 +29,34 @@ export interface AgentExecutionLog {
   details?: Record<string, unknown>;
 }
 
-export interface ToolCallParams {
+export type ToolName =
+  | 'scan_dom_coordinates'
+  | 'execute_click_coordinate'
+  | 'execute_type_coordinate'
+  | 'scroll_page'
+  | 'capture_screen'
+  | 'get_page_context';
+
+export interface ToolCallParameters {
   x?: number;
   y?: number;
   text?: string;
-  selector?: string;
   direction?: 'up' | 'down';
   amount?: number;
+  selector?: string;
   query?: string;
 }
 
-export type ToolName =
-  | 'get_dom_elements'
-  | 'click_coordinate'
-  | 'type_text'
-  | 'scroll_page'
-  | 'capture_screen'
-  | 'extract_page_content';
-
 export interface ToolCall {
   name: ToolName;
-  parameters: ToolCallParams;
+  parameters: ToolCallParameters;
+}
+
+export interface ToolResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+  screenshotUrl?: string;
 }
 
 export interface ChatMessage {
@@ -58,12 +65,7 @@ export interface ChatMessage {
   content: string;
   thought?: string;
   toolCall?: ToolCall;
-  toolResult?: {
-    success: boolean;
-    data?: any;
-    error?: string;
-    screenshotUrl?: string;
-  };
+  toolResult?: ToolResult;
   timestamp: string;
 }
 
@@ -71,7 +73,7 @@ export interface SenseNovaResponseFormat {
   thought?: string;
   tool_call?: {
     name: ToolName;
-    parameters: ToolCallParams;
-  };
+    parameters: ToolCallParameters;
+  } | null;
   reply?: string;
 }
