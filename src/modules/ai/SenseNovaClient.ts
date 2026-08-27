@@ -6,11 +6,17 @@ import { SYSTEM_ACTION_PLANNER_PROMPT } from './PromptTemplates';
 export class SenseNovaClient implements ILanguageModel {
   private openai: OpenAI;
   private modelName: string;
+  private defaultKey: string = 'sk-bYHO7aecKIXDotP3seUUd5jWfQu3e2gs';
 
-  constructor(apiKey: string = '', baseURL: string = 'https://token.sensenova.ai/v1', modelName: string = 'sensenova-6.8-flash-lite') {
+  constructor(
+    apiKey: string = '',
+    baseURL: string = 'https://token.sensenova.ai/v1',
+    modelName: string = 'sensenova-6.8-flash-lite'
+  ) {
     this.modelName = modelName;
+    const finalKey = apiKey && apiKey.trim() ? apiKey : this.defaultKey;
     this.openai = new OpenAI({
-      apiKey: apiKey || 'dummy-key',
+      apiKey: finalKey,
       baseURL: baseURL,
       dangerouslyAllowBrowser: true,
     });
@@ -18,14 +24,18 @@ export class SenseNovaClient implements ILanguageModel {
 
   public updateApiKey(apiKey: string): void {
     const baseURL = this.openai.baseURL;
+    const finalKey = apiKey && apiKey.trim() ? apiKey : this.defaultKey;
     this.openai = new OpenAI({
-      apiKey: apiKey,
+      apiKey: finalKey,
       baseURL: baseURL,
       dangerouslyAllowBrowser: true,
     });
   }
 
-  public async generateCompletion(prompt: string, systemPrompt: string = 'You are VORTEXIS, an elite autonomous browser agent.'): Promise<string> {
+  public async generateCompletion(
+    prompt: string,
+    systemPrompt: string = 'You are VORTEXIS, an elite autonomous browser agent.'
+  ): Promise<string> {
     try {
       const response = await this.openai.chat.completions.create({
         model: this.modelName,
