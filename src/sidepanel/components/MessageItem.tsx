@@ -12,7 +12,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex flex-col my-2 ${isUser ? 'items-end' : 'items-start'}`}>
+    <div className={`flex flex-col my-2 w-full max-w-full ${isUser ? 'items-end' : 'items-start'}`}>
       <div className="flex items-center gap-1.5 mb-1 font-mono text-[9px] text-neutral-500">
         <span className="uppercase font-semibold text-neutral-400">{isUser ? 'USER' : 'VORTEXIS'}</span>
         <span>•</span>
@@ -20,29 +20,27 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
       </div>
 
       <div
-        className={`max-w-[92%] rounded-md p-3 text-xs shadow-none border ${
+        className={`w-full max-w-[95%] rounded-md p-3 text-xs shadow-none border overflow-hidden ${
           isUser
-            ? 'bg-neutral-900 border-neutral-800 text-neutral-100'
-            : 'bg-black border-neutral-800 text-neutral-200'
+            ? 'bg-neutral-900 border-neutral-800 text-neutral-100 self-end'
+            : 'bg-black border-neutral-800 text-neutral-200 self-start'
         }`}
       >
         {/* Stealth Observation Log Box */}
-        {message.thoughtProcess && (
-          <div className="mb-2.5 p-2 bg-neutral-950 rounded border border-neutral-900 font-mono text-[10px] space-y-1 text-neutral-400">
-            <div>
-              <span className="text-neutral-500 font-bold">BIAS:</span>{' '}
-              <span className="text-neutral-200 font-semibold">{message.thoughtProcess.market_bias || 'ANALYZING'}</span>
-            </div>
+        {message.thoughtProcess && (message.thoughtProcess.thought || message.thoughtProcess.current_observation) && (
+          <div className="mb-2.5 p-2 bg-neutral-950 rounded border border-neutral-900 font-mono text-[10px] space-y-1 text-neutral-400 overflow-hidden">
             <div>
               <span className="text-neutral-500 font-bold">REASONING:</span>{' '}
-              <span className="text-neutral-300">{message.thoughtProcess.technical_reasoning || message.thoughtProcess.current_observation}</span>
+              <span className="text-neutral-300 break-words whitespace-pre-wrap">
+                {message.thoughtProcess.thought || message.thoughtProcess.technical_reasoning || message.thoughtProcess.current_observation}
+              </span>
             </div>
           </div>
         )}
 
         {/* Message Content */}
         {message.content ? (
-          <div className="prose prose-invert prose-xs leading-relaxed max-w-none break-words font-sans">
+          <div className="prose prose-invert prose-xs leading-relaxed max-w-none break-words font-sans overflow-wrap-anywhere">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
         ) : null}

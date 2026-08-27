@@ -26,7 +26,7 @@ export class AutonomousPlanner {
   public async runSuperAgentLoop(
     userGoal: string,
     historyMessages: ChatMessage[],
-    onStepUpdate: (message: ChatMessage) => void,
+    onStepUpdate: (message: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string }) => void,
     shouldStop: () => boolean,
     onRequireApproval?: (actionDesc: string, onApprove: () => void, onReject: () => void) => void,
     maxIterations: number = 12
@@ -53,15 +53,24 @@ export class AutonomousPlanner {
       iteration++;
 
       const stepMsgId = `msg-step-${Date.now()}-${iteration}`;
+
+      // Notify UI that AI is thinking & reasoning
+      onStepUpdate({
+        id: stepMsgId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }, { isExecutingTool: false });
+
       const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns);
 
-      // Real-time Text Streaming Simulation to UI
+      // Real-time Character Streaming Simulation to UI
       const fullReplyText = turnResponse.reply || 'Memproses instruksi...';
       let currentText = '';
 
-      for (let i = 0; i < fullReplyText.length; i += 3) {
+      for (let i = 0; i < fullReplyText.length; i += 4) {
         if (shouldStop()) break;
-        currentText = fullReplyText.substring(0, i + 3);
+        currentText = fullReplyText.substring(0, i + 4);
 
         onStepUpdate({
           id: stepMsgId,
@@ -78,12 +87,11 @@ export class AutonomousPlanner {
               }
             : undefined,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        });
+        }, { isExecutingTool: false });
 
-        await new Promise((r) => setTimeout(r, 20)); // High-speed stream delay
+        await new Promise((r) => setTimeout(r, 15));
       }
 
-      // Final state emission for current turn
       const finalStepMsg: ChatMessage = {
         id: stepMsgId,
         role: 'assistant',
@@ -109,6 +117,9 @@ export class AutonomousPlanner {
 
       const toolName = turnResponse.tool_call.name;
       const params = turnResponse.tool_call.parameters;
+
+      // Notify UI that AI is executing tool with loading spinner
+      onStepUpdate(finalStepMsg, { isExecutingTool: true, activeToolName: toolName });
 
       // Human Safety Gate Check
       if (toolName === 'request_confirmation' || toolName === 'request_user_confirmation') {
@@ -139,7 +150,7 @@ export class AutonomousPlanner {
       }
 
       finalStepMsg.toolResult = toolRes;
-      onStepUpdate({ ...finalStepMsg });
+      onStepUpdate({ ...finalStepMsg }, { isExecutingTool: false });
 
       conversationTurns.push({
         role: 'assistant',

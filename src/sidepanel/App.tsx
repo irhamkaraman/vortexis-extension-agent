@@ -17,6 +17,9 @@ const autonomousPlanner = new AutonomousPlanner(toolRegistry, selfHealingDriver)
 export const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
+  const [activeToolName, setActiveToolName] = useState<string>('');
+
   const [pendingTradeApproval, setPendingTradeApproval] = useState<{
     tradePlan: TradeDetails;
     onApprove: () => void;
@@ -52,7 +55,12 @@ export const App: React.FC = () => {
       await autonomousPlanner.runSuperAgentLoop(
         fullPromptText,
         [...messages, userMsg],
-        (stepUpdateMsg: ChatMessage) => {
+        (stepUpdateMsg: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string }) => {
+          if (extraState) {
+            setIsExecutingTool(Boolean(extraState.isExecutingTool));
+            setActiveToolName(extraState.activeToolName || '');
+          }
+
           setMessages((prev) => {
             const existingIdx = prev.findIndex((m) => m.id === stepUpdateMsg.id);
             if (existingIdx !== -1) {
@@ -95,6 +103,8 @@ export const App: React.FC = () => {
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsThinking(false);
+      setIsExecutingTool(false);
+      setActiveToolName('');
       setPendingTradeApproval(null);
     }
   };
@@ -113,6 +123,8 @@ export const App: React.FC = () => {
 
     setMessages((prev) => [...prev, userMsg]);
     setIsThinking(true);
+    setIsExecutingTool(true);
+    setActiveToolName(toolName);
 
     try {
       const toolRes = await selfHealingDriver.executeWithSelfHealing(toolName, {});
@@ -135,6 +147,8 @@ export const App: React.FC = () => {
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsThinking(false);
+      setIsExecutingTool(false);
+      setActiveToolName('');
     }
   };
 
@@ -142,12 +156,16 @@ export const App: React.FC = () => {
     stopSignalRef.current = true;
     setMessages([]);
     setIsThinking(false);
+    setIsExecutingTool(false);
+    setActiveToolName('');
     setPendingTradeApproval(null);
   };
 
   const handleStop = () => {
     stopSignalRef.current = true;
     setIsThinking(false);
+    setIsExecutingTool(false);
+    setActiveToolName('');
     setPendingTradeApproval(null);
   };
 
@@ -156,6 +174,8 @@ export const App: React.FC = () => {
       <ChatPanelContainer
         messages={messages}
         isThinking={isThinking}
+        isExecutingTool={isExecutingTool}
+        activeToolName={activeToolName}
         onClearChat={handleClearChat}
         onEmergencyStop={handleStop}
         pendingTradeApproval={pendingTradeApproval}

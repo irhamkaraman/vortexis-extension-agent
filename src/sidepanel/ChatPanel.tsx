@@ -10,6 +10,8 @@ import { TradeApprovalCard } from './components/TradeApprovalCard';
 interface ChatPanelProps {
   messages: ChatMessage[];
   isThinking: boolean;
+  isExecutingTool?: boolean;
+  activeToolName?: string;
   onClearChat: () => void;
   onEmergencyStop: () => void;
   pendingTradeApproval?: {
@@ -22,6 +24,8 @@ interface ChatPanelProps {
 export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
   messages,
   isThinking,
+  isExecutingTool,
+  activeToolName,
   onClearChat,
   onEmergencyStop,
   pendingTradeApproval,
@@ -32,7 +36,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking, pendingTradeApproval]);
+  }, [messages, isThinking, isExecutingTool, pendingTradeApproval]);
 
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
@@ -49,12 +53,11 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
     }
   }, []);
 
-  // Extract latest thought from active AI message or last assistant turn
   const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant');
   const latestThought = lastAssistantMsg?.thoughtProcess?.thought || lastAssistantMsg?.thoughtProcess?.current_observation;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-black text-neutral-200">
+    <div className="flex-1 flex flex-col overflow-hidden bg-black text-neutral-200 w-full max-w-full">
       {/* Minimal Header Bar */}
       <MinimalHeader
         isThinking={isThinking}
@@ -79,7 +82,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
       )}
 
       {/* Messages Stream Timeline */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 scrollbar-thin scrollbar-thumb-neutral-800">
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 scrollbar-thin scrollbar-thumb-neutral-800 w-full max-w-full overflow-x-hidden">
         {messages.length === 0 && !isThinking ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-neutral-500 p-6 space-y-3 font-mono">
             <div className="w-10 h-10 rounded border border-neutral-800 bg-neutral-950 flex items-center justify-center text-neutral-400">
@@ -96,11 +99,13 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
           messages.map((msg) => <MessageItem key={msg.id} message={msg} />)
         )}
 
-        {/* Real-time Thinking Indicator Stream */}
+        {/* Real-time Thinking & Tool Skeleton Stream Indicator */}
         {isThinking && (
           <ThinkingIndicator
-            statusText="Menganalisis instruksi dan memindai halaman..."
+            statusText={isExecutingTool ? `Menjalankan tool ${activeToolName}...` : 'Menganalisis instruksi dan memindai halaman...'}
             thought={latestThought}
+            isExecutingTool={isExecutingTool}
+            activeToolName={activeToolName}
           />
         )}
 
