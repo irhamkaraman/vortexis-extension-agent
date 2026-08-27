@@ -16,6 +16,8 @@ export class ExtensionDOMExecutor implements IDOMExecutor {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) throw new Error('No active Chrome tab found.');
 
+    await this.ensureContentScriptInjected(targetTabId);
+
     const res = await this.sendMessageToTab<DOMScrapePayload>(targetTabId, {
       type: 'EXTRACT_DOM',
       payload: { tabId: targetTabId },
@@ -28,6 +30,8 @@ export class ExtensionDOMExecutor implements IDOMExecutor {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return { success: false, error: 'No active Chrome tab found.' };
 
+    await this.ensureContentScriptInjected(targetTabId);
+
     return await this.sendMessageToTab<{ success: boolean; result?: string; error?: string }>(targetTabId, {
       type: 'EXECUTE_ACTION',
       payload: { action },
@@ -38,6 +42,8 @@ export class ExtensionDOMExecutor implements IDOMExecutor {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return;
 
+    await this.ensureContentScriptInjected(targetTabId);
+
     await this.sendMessageToTab(targetTabId, {
       type: 'HIGHLIGHT_ELEMENT',
       payload: { selector },
@@ -47,6 +53,8 @@ export class ExtensionDOMExecutor implements IDOMExecutor {
   public async clearHighlight(tabId?: number): Promise<void> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return;
+
+    await this.ensureContentScriptInjected(targetTabId);
 
     await this.sendMessageToTab(targetTabId, {
       type: 'CLEAR_HIGHLIGHT',
@@ -59,11 +67,34 @@ export class ExtensionDOMExecutor implements IDOMExecutor {
     return tabs[0]?.id;
   }
 
+  private async ensureContentScriptInjected(tabId: number): Promise<void> {
+    if (!chrome.scripting) return;
+
+    try {
+      // Check if tab URL allows content script injection
+      const tab = await chrome.tabs.get(tabId);
+      if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+        throw new Error('Cannot inject agent on restricted browser pages (chrome://, about:blank, etc.). Please switch to a normal web tab.');
+      }
+
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['src/content/index.js'],
+      });
+    } catch (err: any) {
+      console.warn('[VORTEXIS] Script injection warning/fallback:', err);
+    }
+  }
+
   private sendMessageToTab<R = any>(tabId: number, message: IPCMessage): Promise<R> {
     return new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(tabId, message, (response) => {
         if (chrome.runtime.lastError) {
-          return reject(new Error(chrome.runtime.lastError.message));
+          return reject(
+            new Error(
+              `${chrome.runtime.lastError.message}. Make sure you are on a normal website tab and refresh the page (F5).`
+            )
+          );
         }
         if (response && response.success === false && response.error) {
           return reject(new Error(response.error));
