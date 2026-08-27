@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { BackgroundToolExecutor } from '../background';
-import { ChatMessage, ToolName, TradeDetails } from '../core/types/agent';
+import { ChatMessage, FileAttachment, ToolName, TradeDetails } from '../core/types/agent';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
 import { SelfHealingDriver } from '../modules/agent/SelfHealingDriver';
 import { ToolRegistry } from '../modules/agent/ToolRegistry';
@@ -25,14 +25,24 @@ export const App: React.FC = () => {
 
   const stopSignalRef = useRef<boolean>(false);
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, attachments: FileAttachment[]) => {
     stopSignalRef.current = false;
     setPendingTradeApproval(null);
+
+    // Format prompt text to include attachment contents if any
+    let fullPromptText = text;
+    if (attachments.length > 0) {
+      const fileSummary = attachments
+        .map((a) => `[File Attached: ${a.name} (${a.type})]\n${a.isImage ? '[Base64 Image Attached]' : a.content}`)
+        .join('\n\n');
+      fullPromptText = `${text}\n\n${fileSummary}`;
+    }
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
       content: text,
+      attachments,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -41,7 +51,7 @@ export const App: React.FC = () => {
 
     try {
       await autonomousPlanner.runSuperAgentLoop(
-        text,
+        fullPromptText,
         [...messages, userMsg],
         (stepUpdateMsg: ChatMessage) => {
           setMessages((prev) => {
@@ -74,7 +84,7 @@ export const App: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: `⚠️ Kendala Sistem Trading Copilot: ${err.message || String(err)}`,
+        content: `LOG_ERROR: ${err.message || String(err)}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -92,7 +102,7 @@ export const App: React.FC = () => {
     const userMsg: ChatMessage = {
       id: `msg-quick-${Date.now()}`,
       role: 'user',
-      content: `Picu skill cepat: ${toolName}`,
+      content: `EXECUTE_QUICK_TOOL: ${toolName}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -104,7 +114,7 @@ export const App: React.FC = () => {
       const aiMsg: ChatMessage = {
         id: `msg-res-${Date.now()}`,
         role: 'assistant',
-        content: `Berhasil mengeksekusi skill **${toolName}**.`,
+        content: `Executed tool **${toolName}**.`,
         toolCall,
         toolResult: toolRes,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -114,7 +124,7 @@ export const App: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: `⚠️ Gagal mengeksekusi skill ${toolName}: ${err.message || String(err)}`,
+        content: `TOOL_FAILED: ${toolName} - ${err.message || String(err)}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -137,7 +147,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-hidden">
+    <div className="w-full h-screen bg-black text-neutral-100 flex flex-col font-sans select-none overflow-hidden">
       <ChatPanelContainer
         messages={messages}
         isThinking={isThinking}

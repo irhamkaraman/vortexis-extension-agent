@@ -1,3 +1,12 @@
+export interface FileAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  content: string; // Base64 for images/PDFs or raw text for CSV/JSON/TXT
+  isImage: boolean;
+}
+
 export type Role = 'user' | 'assistant' | 'system';
 
 export type AgentStatus = 'idle' | 'analyzing' | 'planning' | 'executing' | 'completed' | 'failed';
@@ -167,5 +176,6 @@ export interface ChatMessage {
     parameters: SuperAgentToolParams;
   };
   toolResult?: ToolResult;
+  attachments?: FileAttachment[];
   timestamp: string;
 }
