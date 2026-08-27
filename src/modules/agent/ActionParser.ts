@@ -1,4 +1,4 @@
-import { ToolName } from '../../core/types/agent';
+import { ToolName, UniversalResponseFormat } from '../../core/types/agent';
 
 export interface ActionStepSchema {
   id?: string;
@@ -26,32 +26,28 @@ export interface SenseNovaResponseFormat {
 }
 
 export class ActionParser {
-  public static parseTradingAgentResponse(rawResponse: string): any {
+  public static parseUniversalAgentResponse(rawResponse: string): UniversalResponseFormat {
     const cleanedJson = this.extractCleanJson(rawResponse);
 
     try {
       const parsed = JSON.parse(cleanedJson);
-      return this.validateTradingFormat(parsed);
+      return this.validateUniversalFormat(parsed);
     } catch {
       return {
-        thought_process: {
-          market_bias: 'NEUTRAL',
-          timeframe_checked: 'Current',
-          technical_reasoning: rawResponse.substring(0, 150),
-          risk_reward_ratio: '1:2',
-        },
-        is_goal_achieved: true,
-        next_step: {
-          tool_name: 'finish_task',
-          params: {},
-        },
-        live_status_message: rawResponse,
+        thought: 'Direct response',
+        plan_step: 'Conversational response',
+        tool_call: null,
+        reply: rawResponse,
       };
     }
   }
 
-  public static parseSuperAgentResponse(rawResponse: string): any {
-    return this.parseTradingAgentResponse(rawResponse);
+  public static parseSuperAgentResponse(rawResponse: string): UniversalResponseFormat {
+    return this.parseUniversalAgentResponse(rawResponse);
+  }
+
+  public static parseTradingAgentResponse(rawResponse: string): UniversalResponseFormat {
+    return this.parseUniversalAgentResponse(rawResponse);
   }
 
   public static parseChatResponse(rawResponse: string): SenseNovaResponseFormat {
@@ -95,60 +91,65 @@ export class ActionParser {
     return cleaned;
   }
 
-  private static validateTradingFormat(obj: any): any {
+  private static validateUniversalFormat(obj: any): UniversalResponseFormat {
     if (typeof obj !== 'object' || obj === null) {
       throw new Error('Parsed response is not an object.');
     }
 
-    const thought_process = {
-      market_bias: (obj.thought_process?.market_bias as any) || 'NEUTRAL',
-      timeframe_checked: String(obj.thought_process?.timeframe_checked || '15M'),
-      technical_reasoning: String(obj.thought_process?.technical_reasoning || 'Menganalisis chart visual...'),
-      risk_reward_ratio: String(obj.thought_process?.risk_reward_ratio || '1:2'),
-    };
+    const thought = String(obj.thought || obj.thought_process?.current_observation || 'Menganalisis tugas...');
+    const plan_step = String(obj.plan_step || obj.plan_status?.step_description || 'Mengeksekusi langkah...');
 
-    const trade_signal = obj.trade_signal
-      ? {
-          pair: String(obj.trade_signal.pair || 'CHART'),
-          action_type: (obj.trade_signal.action_type as any) || 'HOLD',
-          entry_price: String(obj.trade_signal.entry_price || '0'),
-          stop_loss: String(obj.trade_signal.stop_loss || '0'),
-          take_profit: String(obj.trade_signal.take_profit || '0'),
-          risk_percentage: String(obj.trade_signal.risk_percentage || '1%'),
-        }
-      : undefined;
+    let tool_call: { name: ToolName; parameters: any } | null = null;
 
-    const next_step_obj = obj.next_step || obj.next_action;
-    const rawToolName = String(next_step_obj?.tool_name || 'finish_task');
+    const toolObj = obj.tool_call || obj.next_step || obj.next_action;
+    if (toolObj && (toolObj.name || toolObj.tool_name)) {
+      const validTools = new Set([
+        'capture_screen',
+        'get_page_context',
+        'scan_dom_elements',
+        'click_coordinate',
+        'type_text',
+        'scroll_page',
+        'drag_and_drop',
+        'trigger_hotkey',
+        'request_confirmation',
+        'scan_interactive_tree',
+        'type_with_delay',
+        'scroll_and_find',
+        'wait_for_condition',
+        'capture_and_inspect_vision',
+        'extract_structured_data',
+        'drag_and_drop_element',
+        'trigger_keyboard_shortcut',
+        'double_click_coordinate',
+        'inspect_canvas_layers',
+        'request_user_confirmation',
+        'save_action_macro',
+        'switch_timeframe',
+        'capture_chart_vision',
+        'draw_on_chart',
+        'fill_order_parameters',
+        'request_trade_confirmation',
+        'execute_confirmed_order',
+        'finish_task',
+      ]);
 
-    const validTools = new Set([
-      'switch_timeframe',
-      'capture_chart_vision',
-      'draw_on_chart',
-      'fill_order_parameters',
-      'request_trade_confirmation',
-      'execute_confirmed_order',
-      'scan_interactive_tree',
-      'click_coordinate',
-      'type_with_delay',
-      'scroll_and_find',
-      'extract_structured_data',
-      'finish_task',
-    ]);
+      const rawToolName = String(toolObj.name || toolObj.tool_name);
+      if (validTools.has(rawToolName)) {
+        tool_call = {
+          name: rawToolName as ToolName,
+          parameters: toolObj.parameters || toolObj.params || {},
+        };
+      }
+    }
 
-    const tool_name = validTools.has(rawToolName) ? (rawToolName as ToolName) : 'finish_task';
-
-    const next_step = {
-      tool_name,
-      params: next_step_obj?.params || {},
-    };
+    const reply = String(obj.reply || obj.message_to_user || obj.live_status_message || 'Siap membantu.');
 
     return {
-      thought_process,
-      trade_signal,
-      is_goal_achieved: Boolean(obj.is_goal_achieved ?? false),
-      next_step,
-      live_status_message: String(obj.live_status_message || obj.message_to_user || 'Menganalisis pergerakan pasar...'),
+      thought,
+      plan_step,
+      tool_call,
+      reply,
     };
   }
 }

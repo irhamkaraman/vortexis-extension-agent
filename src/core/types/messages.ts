@@ -1,4 +1,4 @@
-import { ActionStep } from './agent';
+import { ActionStep, TradeDetails } from './agent';
 
 export interface DOMElementInfo {
   tagName: string;
@@ -49,6 +49,12 @@ export type IPCMessage =
   | { type: 'FILL_ORDER_PARAMETERS_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
   | { type: 'EXECUTE_CONFIRMED_ORDER'; payload: { buttonSelector?: string } }
   | { type: 'EXECUTE_CONFIRMED_ORDER_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
+  | { type: 'DOUBLE_CLICK_COORDINATE'; payload: { x: number; y: number; selector?: string } }
+  | { type: 'DOUBLE_CLICK_COORDINATE_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
+  | { type: 'DRAG_AND_DROP'; payload: { startX: number; startY: number; endX: number; endY: number } }
+  | { type: 'DRAG_AND_DROP_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
+  | { type: 'SEND_HOTKEYS'; payload: { keys: string[] } }
+  | { type: 'SEND_HOTKEYS_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
   | { type: 'SCAN_INTERACTIVE_TREE'; payload?: Record<string, never> }
   | { type: 'SCAN_INTERACTIVE_TREE_RESPONSE'; payload: { success: boolean; elements?: InteractiveElementInfo[]; error?: string } }
   | { type: 'CLICK_COORDINATE'; payload: { x: number; y: number; selector?: string } }

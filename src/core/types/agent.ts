@@ -69,8 +69,16 @@ export interface PlanStatus {
 }
 
 export type ToolName =
-  | 'scan_interactive_tree'
+  | 'capture_screen'
+  | 'get_page_context'
+  | 'scan_dom_elements'
   | 'click_coordinate'
+  | 'type_text'
+  | 'scroll_page'
+  | 'drag_and_drop'
+  | 'trigger_hotkey'
+  | 'request_confirmation'
+  | 'scan_interactive_tree'
   | 'type_with_delay'
   | 'scroll_and_find'
   | 'wait_for_condition'
@@ -116,6 +124,8 @@ export interface SuperAgentToolParams {
   wait_ms?: number;
   query?: string;
   warning_message?: string;
+  actionName?: string;
+  details?: string;
   goalPattern?: string;
   actionSequence?: any[];
   timeframe?: string;
@@ -128,14 +138,14 @@ export interface SuperAgentToolParams {
   buttonSelector?: string;
 }
 
-export interface TradingThoughtProcess {
-  market_bias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
-  timeframe_checked: string;
-  technical_reasoning: string;
-  risk_reward_ratio: string;
-  current_observation: string;
+export interface UniversalThoughtProcess {
+  thought: string;
+  plan_step?: string;
+  current_observation?: string;
   evaluation?: string;
   remaining_goal?: string;
+  market_bias?: string;
+  technical_reasoning?: string;
 }
 
 export interface SuperAgentNextAction {
@@ -143,14 +153,18 @@ export interface SuperAgentNextAction {
   params: SuperAgentToolParams;
 }
 
-export interface TradingResponseFormat {
-  thought_process: TradingThoughtProcess;
-  trade_signal?: TradeDetails;
+export interface UniversalResponseFormat {
+  thought: string;
+  plan_step?: string;
+  tool_call?: {
+    name: ToolName;
+    parameters: SuperAgentToolParams;
+  } | null;
+  reply: string;
+  thought_process?: UniversalThoughtProcess;
   is_goal_achieved?: boolean;
   next_step?: SuperAgentNextAction;
-  next_action?: SuperAgentNextAction;
-  live_status_message: string;
-  message_to_user?: string;
+  live_status_message?: string;
 }
 
 export interface ToolResult {
@@ -168,7 +182,7 @@ export interface ChatMessage {
   id: string;
   role: Role;
   content: string;
-  thoughtProcess?: TradingThoughtProcess;
+  thoughtProcess?: UniversalThoughtProcess;
   planStatus?: PlanStatus;
   tradeSignal?: TradeDetails;
   toolCall?: {

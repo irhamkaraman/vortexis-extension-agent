@@ -26,6 +26,10 @@ export class BackgroundToolExecutor {
     return await ChartVisionService.captureChartVision();
   }
 
+  public async captureAndInspectVision(): Promise<string> {
+    return await ChartVisionService.captureChartVision();
+  }
+
   public async drawOnChart(toolName: string, startX: number, startY: number, endX: number, endY: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
@@ -35,6 +39,42 @@ export class BackgroundToolExecutor {
     return await this.sendMessageToTab(targetTabId, {
       type: 'DRAW_ON_CHART',
       payload: { toolName, startX, startY, endX, endY },
+    });
+  }
+
+  public async dragAndDrop(startX: number, startY: number, endX: number, endY: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'DRAG_AND_DROP',
+      payload: { startX, startY, endX, endY },
+    });
+  }
+
+  public async sendHotkeys(keys: string[], tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'SEND_HOTKEYS',
+      payload: { keys },
+    });
+  }
+
+  public async doubleClickCoordinate(x: number, y: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+
+    await this.ensureContentScriptInjected(targetTabId);
+
+    return await this.sendMessageToTab(targetTabId, {
+      type: 'DOUBLE_CLICK_COORDINATE',
+      payload: { x, y, selector },
     });
   }
 

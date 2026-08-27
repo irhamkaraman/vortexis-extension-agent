@@ -29,7 +29,6 @@ export const App: React.FC = () => {
     stopSignalRef.current = false;
     setPendingTradeApproval(null);
 
-    // Format prompt text to include attachment contents if any
     let fullPromptText = text;
     if (attachments.length > 0) {
       const fileSummary = attachments
@@ -65,9 +64,15 @@ export const App: React.FC = () => {
           });
         },
         () => stopSignalRef.current,
-        (tradePlan, onApprove, onReject) => {
+        (actionDesc, onApprove, onReject) => {
           setPendingTradeApproval({
-            tradePlan,
+            tradePlan: {
+              pair: 'ACTION_CONFIRMATION',
+              action_type: 'BUY',
+              entry_price: actionDesc,
+              stop_loss: 'N/A',
+              take_profit: 'N/A',
+            },
             onApprove: () => {
               setPendingTradeApproval(null);
               onApprove();

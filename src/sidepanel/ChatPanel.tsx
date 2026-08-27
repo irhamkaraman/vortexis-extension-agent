@@ -50,7 +50,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-black text-neutral-200">
-      {/* Stealth Minimalist Header */}
+      {/* Minimal Header Bar */}
       <MinimalHeader
         isThinking={isThinking}
         onClearChat={onClearChat}
@@ -64,7 +64,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
         currentDomain={currentDomain}
       />
 
-      {/* Mandatory Trade Approval Gate Panel */}
+      {/* Human Safety Gate Confirmation Panel */}
       {pendingTradeApproval && (
         <TradeApprovalCard
           tradePlan={pendingTradeApproval.tradePlan}
@@ -81,9 +81,9 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
               <Terminal className="w-5 h-5" strokeWidth={1.5} />
             </div>
             <div>
-              <h3 className="font-bold text-neutral-200 text-xs tracking-wider uppercase">VORTEXIS STEALTH TOOLKIT</h3>
+              <h3 className="font-bold text-neutral-200 text-xs tracking-wider uppercase">VORTEXIS COPILOT</h3>
               <p className="text-[11px] text-neutral-500 mt-1 max-w-xs leading-relaxed font-sans">
-                High-density developer engine. Drag & drop files or type instructions to execute web tools.
+                Autonomous In-Browser AI Copilot & Universal Action Agent. Seret file atau beri instruksi untuk bantuan riset, otomasi, maupun analisis.
               </p>
             </div>
           </div>

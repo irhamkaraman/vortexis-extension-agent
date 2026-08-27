@@ -1,9 +1,9 @@
 import OpenAI from 'openai';
-import { ChatMessage, TradeDetails, TradingResponseFormat } from '../../core/types/agent';
+import { ChatMessage, UniversalResponseFormat } from '../../core/types/agent';
 import { ActionParser } from './ActionParser';
 import { SelfHealingDriver } from './SelfHealingDriver';
 import { ToolRegistry } from './ToolRegistry';
-import { TRADING_COPILOT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
+import { UNIVERSAL_AGENT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
 
 export class AutonomousPlanner {
   private openai: OpenAI;
@@ -28,7 +28,7 @@ export class AutonomousPlanner {
     historyMessages: ChatMessage[],
     onStepUpdate: (message: ChatMessage) => void,
     shouldStop: () => boolean,
-    onRequireTradeApproval?: (tradePlan: TradeDetails, onApprove: () => void, onReject: () => void) => void,
+    onRequireApproval?: (actionDesc: string, onApprove: () => void, onReject: () => void) => void,
     maxIterations: number = 12
   ): Promise<void> {
     let iteration = 0;
@@ -44,7 +44,7 @@ export class AutonomousPlanner {
         onStepUpdate({
           id: `msg-stop-${Date.now()}`,
           role: 'assistant',
-          content: '🛑 Trading Copilot Agent dihentikan oleh pengguna.',
+          content: 'Eksekusi dihentikan oleh pengguna.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         });
         break;
@@ -52,87 +52,85 @@ export class AutonomousPlanner {
 
       iteration++;
 
-      const turnResponse: TradingResponseFormat = await this.getSenseNovaTradingDecision(conversationTurns);
+      const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns);
 
       const stepMsg: ChatMessage = {
         id: `msg-step-${Date.now()}-${iteration}`,
         role: 'assistant',
-        content: turnResponse.live_status_message || turnResponse.message_to_user || 'Menganalisis chart...',
-        thoughtProcess: turnResponse.thought_process,
-        tradeSignal: turnResponse.trade_signal,
-        toolCall:
-          turnResponse.next_step && turnResponse.next_step.tool_name !== 'finish_task'
-            ? {
-                name: turnResponse.next_step.tool_name,
-                parameters: turnResponse.next_step.params,
-              }
-            : undefined,
+        content: turnResponse.reply || 'Memproses instruksi...',
+        thoughtProcess: {
+          thought: turnResponse.thought,
+          current_observation: turnResponse.thought,
+        },
+        toolCall: turnResponse.tool_call
+          ? {
+              name: turnResponse.tool_call.name,
+              parameters: turnResponse.tool_call.parameters,
+            }
+          : undefined,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
       onStepUpdate(stepMsg);
 
-      if (turnResponse.is_goal_achieved || turnResponse.next_step?.tool_name === 'finish_task') {
+      if (!turnResponse.tool_call || turnResponse.tool_call.name === 'finish_task') {
         break;
       }
 
-      if (turnResponse.next_step) {
-        const toolName = turnResponse.next_step.tool_name;
-        const params = turnResponse.next_step.params;
+      const toolName = turnResponse.tool_call.name;
+      const params = turnResponse.tool_call.parameters;
 
-        // Mandatory Human Approval Gate
-        if (toolName === 'request_trade_confirmation') {
-          const tradePlan = params.tradePlan || turnResponse.trade_signal || {
-            pair: 'BTC/USDT',
-            action_type: 'BUY',
-            entry_price: '65,300',
-            stop_loss: '64,800',
-            take_profit: '66,550',
-          };
-
-          await new Promise<void>((resolve, reject) => {
-            if (onRequireTradeApproval) {
-              onRequireTradeApproval(
-                tradePlan,
-                async () => {
-                  // Execute confirmed order button
-                  await this.toolRegistry.executeTool('execute_confirmed_order', params);
-                  resolve();
-                },
-                () => reject(new Error('Order finansial ditolak oleh pengguna.'))
-              );
-            } else {
-              resolve();
-            }
-          });
-        }
-
-        const toolRes = await this.selfHealingDriver.executeWithSelfHealing(toolName, params);
-
-        stepMsg.toolResult = toolRes;
-        onStepUpdate({ ...stepMsg });
-
-        conversationTurns.push({
-          role: 'assistant',
-          content: JSON.stringify(turnResponse),
-        });
-
-        conversationTurns.push({
-          role: 'system',
-          content: `Hasil eksekusi trading tool ${toolName}: ${JSON.stringify(toolRes.data || toolRes.error || 'Success')}`,
+      // Human Safety Gate Check
+      if (toolName === 'request_confirmation' || toolName === 'request_user_confirmation') {
+        const details = params.details || params.warning_message || 'Konfirmasi aksi berisiko tinggi diperlukan.';
+        await new Promise<void>((resolve, reject) => {
+          if (onRequireApproval) {
+            onRequireApproval(
+              details,
+              () => resolve(),
+              () => reject(new Error('Aksi dibatalkan oleh pengguna.'))
+            );
+          } else {
+            resolve();
+          }
         });
       }
+
+      const toolRes = await this.selfHealingDriver.executeWithSelfHealing(toolName, params);
+
+      if (toolRes.requiresApproval && onRequireApproval) {
+        await new Promise<void>((resolve, reject) => {
+          onRequireApproval(
+            toolRes.warningMessage || 'Persetujuan eksekusi diperlukan.',
+            () => resolve(),
+            () => reject(new Error('Aksi dibatalkan oleh pengguna.'))
+          );
+        });
+      }
+
+      stepMsg.toolResult = toolRes;
+      onStepUpdate({ ...stepMsg });
+
+      conversationTurns.push({
+        role: 'assistant',
+        content: JSON.stringify(turnResponse),
+      });
+
+      conversationTurns.push({
+        role: 'system',
+        content: `Hasil eksekusi tool ${toolName}: ${JSON.stringify(toolRes.data || toolRes.error || 'Success')}`,
+      });
 
       await new Promise((r) => setTimeout(r, 600));
     }
   }
 
-  private async getSenseNovaTradingDecision(
+  private async getSenseNovaDecision(
     chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[]
-  ): Promise<TradingResponseFormat> {
+  ): Promise<UniversalResponseFormat> {
     try {
       const messages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [
-        { role: 'system', content: TRADING_COPILOT_SYSTEM_PROMPT },
+        { role: 'system', content: UNIVERSAL_AGENT_SYSTEM_PROMPT },
         ...chatHistory,
       ];
 
@@ -143,7 +141,7 @@ export class AutonomousPlanner {
       });
 
       const rawContent = response.choices[0]?.message?.content || '';
-      return ActionParser.parseTradingAgentResponse(rawContent);
+      return ActionParser.parseUniversalAgentResponse(rawContent);
     } catch (err: any) {
       console.error('[AutonomousPlanner] SenseNova Decision Error:', err);
       throw new Error(`SenseNova API Error: ${err.message || String(err)}`);
