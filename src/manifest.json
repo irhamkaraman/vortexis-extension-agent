@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "VORTEXIS - Autonomous In-Browser AI Copilot",
+  "version": "1.0.0",
+  "description": "Next-Gen Autonomous In-Browser AI Copilot & DOM Agent powered by SenseNova LLM & In-Memory RAG.",
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "Open VORTEXIS Panel"
+  },
+  "icons": {
+    "16": "public/favicon.svg",
+    "48": "public/favicon.svg",
+    "128": "public/favicon.svg"
+  }
+}
