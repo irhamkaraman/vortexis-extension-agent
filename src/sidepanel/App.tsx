@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BackgroundToolExecutor } from '../background';
-import { ChatMessage, FileAttachment, ToolName, TradeDetails } from '../core/types/agent';
+import { AgentActivityState, AgentActivityStep, ChatMessage, FileAttachment, ToolName, TradeDetails } from '../core/types/agent';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
 import { SelfHealingDriver } from '../modules/agent/SelfHealingDriver';
 import { ToolRegistry } from '../modules/agent/ToolRegistry';
 import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
 import { ChatPanelContainer } from './ChatPanel';
 import { ChatInput } from './components/ChatInput';
+import { sanitizeToolParameters, summarizeToolResult } from '../modules/agent/ActivityUtils';
 
 const toolExecutor = new BackgroundToolExecutor();
 const ragStore = new BrowserRAGStore();
@@ -22,6 +23,7 @@ export const App: React.FC = () => {
   const [activeToolName, setActiveToolName] = useState<string>('');
   const [statusText, setStatusText] = useState<string>('Menyiapkan jawaban...');
   const [hasGreeted, setHasGreeted] = useState<boolean>(false);
+  const [activity, setActivity] = useState<AgentActivityState>({ isActive: false, statusText: '', steps: [] });
 
   useEffect(() => {
     if (!isThinking) return;
@@ -98,6 +100,7 @@ export const App: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setIsThinking(true);
     setStatusText('Menganalisis permintaan...');
+    setActivity({ isActive: true, statusText: 'Menganalisis permintaan...', steps: [{ id: `thinking-${runId}`, kind: 'thinking', title: 'Menganalisis permintaan', summary: 'Menentukan konteks dan langkah yang diperlukan.', status: 'active', startedAt: Date.now() }] });
 
     try {
       await autonomousPlanner.runSuperAgentLoop(
@@ -112,6 +115,7 @@ export const App: React.FC = () => {
             setActiveToolName(extraState.activeToolName || '');
 
             if (extraState.statusText) setStatusText(extraState.statusText);
+            if (extraState.statusText) setActivity((current) => ({ ...current, isActive: true, statusText: extraState.statusText || current.statusText }));
 
             if (extraState.streamingComplete === true) {
               setIsThinking(false);
@@ -128,6 +132,30 @@ export const App: React.FC = () => {
               return updated;
             }
             return [...prev, stepUpdateMsg];
+          });
+          setActivity((current) => {
+            if (stepUpdateMsg.toolCall) {
+              const existing = current.steps.find((step) => step.toolName === stepUpdateMsg.toolCall?.name);
+              const result = stepUpdateMsg.toolResult;
+              const step: AgentActivityStep = {
+                id: `tool-${stepUpdateMsg.id}`,
+                kind: 'tool',
+                title: stepUpdateMsg.toolCall.name,
+                summary: result ? summarizeToolResult(result) : 'Menjalankan tool sesuai kebutuhan.',
+                status: result ? (result.success ? 'success' : 'error') : 'active',
+                toolName: stepUpdateMsg.toolCall.name,
+                parameters: sanitizeToolParameters(stepUpdateMsg.toolCall.name, stepUpdateMsg.toolCall.parameters),
+                resultSummary: result ? summarizeToolResult(result) : undefined,
+                startedAt: existing?.startedAt || Date.now(),
+                completedAt: result ? Date.now() : undefined,
+              };
+              return { ...current, steps: [...current.steps.filter((item) => item.id !== step.id), step] };
+            }
+            if (stepUpdateMsg.content) {
+              const answer: AgentActivityStep = { id: `answer-${stepUpdateMsg.id}`, kind: 'answer', title: 'Menyiapkan jawaban', summary: 'Respons diperbarui secara streaming.', status: 'active', startedAt: Date.now() };
+              return { ...current, steps: [...current.steps.filter((item) => item.id !== answer.id), answer] };
+            }
+            return current;
           });
         },
         () => stopSignalRef.current,
@@ -168,6 +196,7 @@ export const App: React.FC = () => {
         setIsExecutingTool(false);
         setActiveToolName('');
         setPendingTradeApproval(null);
+        setActivity((current) => ({ ...current, isActive: false, statusText: 'Selesai', steps: current.steps.map((step) => step.status === 'active' ? { ...step, status: 'success', completedAt: Date.now() } : step) }));
       }
     }
   };
@@ -193,6 +222,7 @@ export const App: React.FC = () => {
     setStatusText('Menjalankan langkah berikutnya...');
     setIsExecutingTool(true);
     setActiveToolName(toolName);
+    setActivity({ isActive: true, statusText: 'Menjalankan langkah berikutnya...', steps: [{ id: `quick-${runId}`, kind: 'tool', title: toolName, summary: 'Menjalankan tool yang dipilih.', status: 'active', toolName, parameters: {}, startedAt: Date.now() }] });
 
     try {
       const toolRes = await selfHealingDriver.executeWithSelfHealing(toolName, {});
@@ -222,6 +252,7 @@ export const App: React.FC = () => {
         setIsThinking(false);
         setIsExecutingTool(false);
         setActiveToolName('');
+        setActivity((current) => ({ ...current, isActive: false, statusText: 'Selesai', steps: current.steps.map((step) => ({ ...step, status: 'success', completedAt: Date.now() })) }));
       }
     }
   };
@@ -237,6 +268,7 @@ export const App: React.FC = () => {
     setActiveToolName('');
         setStatusText('Menyiapkan jawaban...');
     setPendingTradeApproval(null);
+    setActivity({ isActive: false, statusText: '', steps: [] });
   };
 
   const handleStop = () => {
@@ -249,6 +281,7 @@ export const App: React.FC = () => {
     setActiveToolName('');
     setStatusText('Menyiapkan jawaban...');
     setPendingTradeApproval(null);
+    setActivity({ isActive: false, statusText: '', steps: [] });
   };
 
   return (
@@ -261,7 +294,8 @@ export const App: React.FC = () => {
         statusText={statusText}
         onClearChat={handleClearChat}
         onEmergencyStop={handleStop}
-        pendingTradeApproval={pendingTradeApproval}
+         pendingTradeApproval={pendingTradeApproval}
+         activity={activity}
       />
       <ChatInput
         onSendMessage={handleSendMessage}

@@ -1,7 +1,7 @@
 import React from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, CircleAlert, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { AgentActivityState } from '../../core/types/agent';
 
 const TOOL_STATUS_MESSAGES: Record<string, string> = {
   capture_screen: 'Mengambil screenshot halaman...',
@@ -35,6 +35,7 @@ const TOOL_STATUS_MESSAGES: Record<string, string> = {
 };
 
 interface ThinkingIndicatorProps {
+  activity: AgentActivityState;
   statusText?: string;
   thought?: string;
   isExecutingTool?: boolean;
@@ -42,16 +43,17 @@ interface ThinkingIndicatorProps {
 }
 
 export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
+  activity,
   statusText,
-  thought,
+  thought: _thought,
   isExecutingTool: _isExecutingTool,
   activeToolName,
 }) => {
-  const [thoughtOpen, setThoughtOpen] = useState(false);
+  const [thoughtOpen, setThoughtOpen] = useState(true);
   const derivedStatus = statusText || (activeToolName ? TOOL_STATUS_MESSAGES[activeToolName] || `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...');
 
   return (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="vortexis-live-activity" role="status" aria-live="polite">
+    <div className="vortexis-live-activity" role="status" aria-live="polite">
       <div className="vortexis-thinking-line">
         <span className="vortexis-thinking-orb" aria-hidden="true" />
         <span className="vortexis-thinking-label">{derivedStatus}</span>
@@ -60,7 +62,14 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
            {thoughtOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
         </button>
       </div>
-      {thoughtOpen && <div className="vortexis-live-thought">VORTEXIS sedang memproses permintaan secara aman. Detail internal dan pemanggilan tool tidak ditampilkan.</div>}
-    </motion.div>
+      {thoughtOpen && <div className="vortexis-activity-timeline">
+        {activity.steps.map((step) => (
+          <div className={`vortexis-activity-step is-${step.status}`} key={step.id}>
+            <span className="vortexis-activity-icon">{step.status === 'active' ? <LoaderCircle className="vortexis-activity-spin" /> : step.status === 'success' ? <Check /> : <CircleAlert />}</span>
+            <div className="vortexis-activity-copy"><strong>{step.title}</strong><span>{step.summary}</span>{step.parameters && Object.keys(step.parameters).length > 0 && <code>{JSON.stringify(step.parameters, null, 2)}</code>}</div>
+          </div>
+        ))}
+      </div>}
+    </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Terminal } from 'lucide-react';
-import { ChatMessage, TradeDetails } from '../core/types/agent';
+import { AgentActivityState, ChatMessage, TradeDetails } from '../core/types/agent';
 import { MessageItem } from './components/MessageItem';
 import { MinimalHeader } from './components/MinimalHeader';
 import { PermissionModal } from './components/PermissionModal';
@@ -20,6 +20,7 @@ interface ChatPanelProps {
     onApprove: () => void;
     onReject: () => void;
   } | null;
+  activity: AgentActivityState;
 }
 
 export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
@@ -31,6 +32,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
   onClearChat,
   onEmergencyStop,
   pendingTradeApproval,
+  activity,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -104,6 +106,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
         {/* Real-time Thinking & Tool Skeleton Stream Indicator */}
         {isThinking && (
           <ThinkingIndicator
+            activity={activity}
             statusText={statusText || (isExecutingTool ? 'Menjalankan langkah berikutnya...' : 'Menyiapkan jawaban...')}
             isExecutingTool={isExecutingTool}
             activeToolName={activeToolName}

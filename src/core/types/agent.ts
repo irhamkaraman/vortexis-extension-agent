@@ -195,3 +195,25 @@ export interface ChatMessage {
   attachments?: FileAttachment[];
   timestamp: string;
 }
+
+export type AgentActivityStatus = 'active' | 'success' | 'error' | 'cancelled';
+export type AgentActivityKind = 'thinking' | 'tool' | 'result' | 'answer';
+
+export interface AgentActivityStep {
+  id: string;
+  kind: AgentActivityKind;
+  title: string;
+  summary: string;
+  status: AgentActivityStatus;
+  toolName?: ToolName;
+  parameters?: Record<string, unknown>;
+  resultSummary?: string;
+  startedAt: number;
+  completedAt?: number;
+}
+
+export interface AgentActivityState {
+  isActive: boolean;
+  statusText: string;
+  steps: AgentActivityStep[];
+}
