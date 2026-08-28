@@ -15,6 +15,10 @@ const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
 const STREAM_TIMEOUT_MS = 120_000;
 const CASUAL_STREAM_TIMEOUT_MS = 120_000;
 const MAX_STREAM_ATTEMPTS = 2;
+// Limit conversation history to avoid context overflow on multi-turn calls.
+// SenseNova docs: "Multi-turn significantly increases prompt_tokens. For long histories, summarize or truncate."
+const MAX_HISTORY_MESSAGES = 20;
+const MAX_TOOL_RESULT_CHARS = 2000;
 
 interface NativeToolCall { id: string; name: string; arguments: string; }
 interface NativeDecision { content: string; toolCalls: NativeToolCall[]; reasoningContent: string; }
@@ -66,8 +70,15 @@ export class AutonomousPlanner {
       .slice(0, 4);
     let iteration = 0;
     const pageContext = await this.prefetchRelevantPageContext(userGoal, shouldStop);
+
+    // Trim history to avoid context overflow on subsequent prompts.
+    // Keep the first 2 messages (initial context) + last MAX_HISTORY_MESSAGES.
+    const trimmedHistory = historyMessages.length > MAX_HISTORY_MESSAGES
+      ? [...historyMessages.slice(0, 2), ...historyMessages.slice(-MAX_HISTORY_MESSAGES)]
+      : historyMessages;
+
     const conversationTurns: { role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }[] = [
-      ...historyMessages.map((m) => ({
+      ...trimmedHistory.map((m) => ({
         role: m.role,
         content: m.content || (m.toolCall ? `Executed tool: ${m.toolCall.name}` : ''),
       })),
@@ -256,10 +267,15 @@ export class AutonomousPlanner {
             function: { name: toolName, arguments: JSON.stringify(params) },
           }],
         } as any);
+        // Truncate large tool results (screenshots, page context) to prevent context overflow
+        let toolResultContent = JSON.stringify(toolRes.data || toolRes.error || { success: toolRes.success });
+        if (toolResultContent.length > MAX_TOOL_RESULT_CHARS) {
+          toolResultContent = toolResultContent.substring(0, MAX_TOOL_RESULT_CHARS) + '... [truncated]';
+        }
         conversationTurns.push({
           role: 'tool',
           tool_call_id: nativeToolCallId,
-          content: JSON.stringify(toolRes.data || toolRes.error || { success: toolRes.success }),
+          content: toolResultContent,
         });
 
         await new Promise((r) => setTimeout(r, 300));
@@ -338,7 +354,8 @@ export class AutonomousPlanner {
         model: this.modelName,
         messages,
         temperature: 0.2,
-         reasoning_effort: reasoningEffort,
+        max_tokens: 4096,
+        reasoning_effort: reasoningEffort,
       };
       if (needsTools) {
         requestBody.tools = getNativeToolDefinitions();
@@ -511,13 +528,14 @@ export class AutonomousPlanner {
     const toolCalls = new Map<number, NativeToolCall>();
     const consume = (payload: string) => {
       if (!payload || payload === '[DONE]') return;
-      let chunk: { choices?: Array<{ delta?: { content?: string; reasoning_content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }> };
+      let chunk: any;
       try { chunk = JSON.parse(payload); } catch { return; }
       const delta = chunk.choices?.[0]?.delta;
       const text = delta?.content || '';
       content += text;
-      // Capture reasoning_content (SenseNova extended thinking)
-      const reasoning = delta?.reasoning_content || '';
+      // Capture reasoning — SenseNova streaming uses "reasoning" field in SSE delta
+      // Some endpoints may use "reasoning_content" — check both for compatibility
+      const reasoning = delta?.reasoning || delta?.reasoning_content || '';
       if (reasoning) {
         reasoningContent += reasoning;
         onStreamThought?.(reasoningContent);

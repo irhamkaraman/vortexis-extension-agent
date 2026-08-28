@@ -4,7 +4,6 @@ import { AgentActivityState, ChatMessage, TradeDetails } from '../core/types/age
 import { MessageItem } from './components/MessageItem';
 import { MinimalHeader } from './components/MinimalHeader';
 import { PermissionModal } from './components/PermissionModal';
-import { ThinkingIndicator } from './components/ThinkingIndicator';
 import { TradeApprovalCard } from './components/TradeApprovalCard';
 import { AgentActivityTimeline } from './components/AgentActivityTimeline';
 
@@ -100,16 +99,6 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
           messages.map((msg, idx) => (
             <MessageItem key={msg.id} message={msg} isStreaming={isThinking && idx === messages.length - 1 && msg.role === 'assistant'} />
           ))
-        )}
-
-        {/* Real-time Thinking & Tool Skeleton Stream Indicator */}
-        {isThinking && (
-          <ThinkingIndicator
-            activity={activity}
-            statusText={statusText || (isExecutingTool ? 'Menjalankan langkah berikutnya...' : 'Menyiapkan jawaban...')}
-            isExecutingTool={isExecutingTool}
-            activeToolName={activeToolName}
-          />
         )}
 
         {/* Persistent Activity Timeline — shows tool execution steps */}
