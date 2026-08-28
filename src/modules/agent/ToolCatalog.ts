@@ -1,4 +1,5 @@
 import { ToolName } from '../../core/types/agent';
+import { PluginRegistry } from '../../plugins/core/PluginRegistry';
 
 export interface ToolDefinition {
   name: ToolName;
@@ -55,14 +56,24 @@ export const TOOL_CATALOG: ToolDefinition[] = [
   { name: 'finish_task', label: 'Selesaikan tugas', description: 'Menandai tugas selesai.', whenToUse: 'Sebagai penutup workflow multi-langkah.', category: 'workflow', requiresPage: false },
 ];
 
-export const TOOL_NAMES = new Set<ToolName>(TOOL_CATALOG.map((tool) => tool.name));
+export function getAllToolNames(): Set<string> {
+  const names = new Set<string>(TOOL_CATALOG.map((tool) => tool.name));
+  for (const plugin of PluginRegistry.getToolPlugins()) {
+    names.add(plugin.definition.name);
+  }
+  return names;
+}
+
+export const TOOL_NAMES = getAllToolNames();
 
 export function formatToolCatalogForPrompt(): string {
-  return TOOL_CATALOG.map((tool, index) => `${index + 1}. ${tool.name}: ${tool.description} Gunakan saat: ${tool.whenToUse}`).join('\n');
+  const baseTools = TOOL_CATALOG.map((tool, index) => `${index + 1}. ${tool.name}: ${tool.description} Gunakan saat: ${tool.whenToUse}`).join('\n');
+  const pluginTools = PluginRegistry.formatToolPluginsForPrompt();
+  return pluginTools ? `${baseTools}\n\nPLUGIN TOOLS (Auto-Discovered):\n${pluginTools}` : baseTools;
 }
 
 export function getNativeToolDefinitions(): NativeToolDefinition[] {
-  return TOOL_CATALOG.filter((tool) => tool.name !== 'finish_task').map((tool) => ({
+  const base = TOOL_CATALOG.filter((tool) => tool.name !== 'finish_task').map((tool) => ({
     type: 'function' as const,
     function: {
       name: tool.name,
@@ -70,6 +81,17 @@ export function getNativeToolDefinitions(): NativeToolDefinition[] {
       parameters: tool.parameters || defaultToolParameters(),
     },
   }));
+
+  const plugins: NativeToolDefinition[] = PluginRegistry.getToolPlugins().map((p) => ({
+    type: 'function' as const,
+    function: {
+      name: p.definition.name,
+      description: p.definition.description,
+      parameters: (p.definition.parameters as any) || { type: 'object', properties: {}, additionalProperties: true },
+    },
+  }));
+
+  return [...base, ...plugins];
 }
 
 function defaultToolParameters(): NativeToolDefinition['function']['parameters'] {

@@ -3,6 +3,7 @@ import { SuperAgentToolParams, ToolName, ToolResult } from '../../core/types/age
 import { InteractiveElementInfo } from '../../core/types/messages';
 import { BrowserRAGStore } from '../rag/BrowserRAGStore';
 import { TOOL_CATALOG } from './ToolCatalog';
+import { PluginRegistry } from '../../plugins/core/PluginRegistry';
 
 export class ToolRegistry {
   private toolExecutor: BackgroundToolExecutor;
@@ -174,8 +175,21 @@ export class ToolRegistry {
           return { success: true, data: macro };
         }
 
-        default:
+        default: {
+          // Check dynamic PluginRegistry tools
+          const pluginTool = PluginRegistry.getTool(name);
+          if (pluginTool) {
+            const res = await pluginTool.handler(parameters);
+            return {
+              success: res.success,
+              data: res.data,
+              error: res.error,
+              warningMessage: res.warningMessage,
+              requiresApproval: res.requiresApproval,
+            };
+          }
           return { success: false, error: `Tool tidak dikenal: ${name}` };
+        }
       }
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : String(err) };

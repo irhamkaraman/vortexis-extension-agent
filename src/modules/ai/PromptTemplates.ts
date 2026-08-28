@@ -1,4 +1,5 @@
 import { formatToolCatalogForPrompt } from '../agent/ToolCatalog';
+import { PluginRegistry } from '../../plugins/core/PluginRegistry';
 
 export const UNIVERSAL_AGENT_SYSTEM_PROMPT = `
 You are VORTEXIS — Autonomous In-Browser AI Copilot & Universal Action Agent.
@@ -16,6 +17,9 @@ IMPORTANT TOOL USAGE RULES:
 
 AVAILABLE UNIVERSAL TOOLS (canonical registry; you know and may use these when needed):
 ${formatToolCatalogForPrompt()}
+
+EXPERT SKILLS (Auto-Discovered):
+${PluginRegistry.formatSkillsForPrompt() || 'Tidak ada skill tambahan yang dimuat.'}
 
 TOOL SELECTION:
 - First decide whether the request is conversational, page-context, visual, interaction, workflow, or safety related.
