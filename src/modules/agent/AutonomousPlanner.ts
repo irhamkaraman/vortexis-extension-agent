@@ -5,12 +5,16 @@ import { ActionParser } from './ActionParser';
 import { SelfHealingDriver } from './SelfHealingDriver';
 import { ToolRegistry } from './ToolRegistry';
 import { UNIVERSAL_AGENT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
+import { getNativeToolDefinitions } from './ToolCatalog';
 
 import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } from 'openai/resources/chat';
 
 const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
-const STREAM_TIMEOUT_MS = 8_000;
-const FALLBACK_TIMEOUT_MS = 20_000;
+const STREAM_TIMEOUT_MS = 60_000;
+const FALLBACK_TIMEOUT_MS = 30_000;
+
+interface NativeToolCall { id: string; name: string; arguments: string; }
+interface NativeDecision { content: string; toolCalls: NativeToolCall[]; }
 
 const OVERLAY_STATUSES: Record<string, string> = {
   capturing: 'Sedang screenshot — halaman tetap bisa diklik',
@@ -67,7 +71,7 @@ export class AutonomousPlanner {
       .slice(0, 4);
     let iteration = 0;
     const pageContext = await this.prefetchRelevantPageContext(userGoal, shouldStop);
-    const conversationTurns: { role: 'user' | 'assistant' | 'system'; content: string }[] = [
+    const conversationTurns: { role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }[] = [
       ...historyMessages.map((m) => ({
         role: m.role,
         content: m.content || (m.toolCall ? `Executed tool: ${m.toolCall.name}` : ''),
@@ -102,17 +106,21 @@ export class AutonomousPlanner {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         }, { isExecutingTool: false, statusText: 'Menganalisis permintaan...' });
 
-      const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments, shouldStop, (statusText) => {
-          onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText, isExecutingTool: false });
-        });
+        let streamedAnswer = '';
+        const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments, shouldStop, (statusText) => {
+           onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText, isExecutingTool: false });
+         }, (partialText) => {
+           streamedAnswer = partialText;
+           onStepUpdate({ id: stepMsgId, role: 'assistant', content: partialText, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { isExecutingTool: false });
+         });
 
         // A tool-call turn is an internal activity step, not a user-facing answer.
         // Only the no-tool turn becomes the final response bubble.
         const isFinishSignal = turnResponse.tool_call?.name === 'finish_task';
         const fullReplyText = turnResponse.tool_call && !isFinishSignal ? '' : (turnResponse.reply || 'Selesai memproses permintaan.');
-        let currentText = '';
+        let currentText = streamedAnswer;
 
-        for (let i = 0; i < fullReplyText.length; i += 4) {
+        for (let i = streamedAnswer.length; i < fullReplyText.length; i += 4) {
           if (shouldStop()) break;
           currentText = fullReplyText.substring(0, i + 4);
 
@@ -239,10 +247,20 @@ export class AutonomousPlanner {
         finalStepMsg.toolResult = toolRes;
         onStepUpdate({ ...finalStepMsg }, { isExecutingTool: true, activeToolName: toolName, statusText: 'Memproses hasil langkah...' });
 
-        conversationTurns.push({ role: 'assistant', content: JSON.stringify(turnResponse) });
+        const nativeToolCallId = turnResponse.nativeToolCallId || `call-${Date.now()}`;
         conversationTurns.push({
-          role: 'system',
-          content: `Hasil eksekusi tool ${toolName}: ${JSON.stringify(toolRes.data || toolRes.error || 'Success')}`,
+          role: 'assistant',
+          content: '',
+          tool_calls: [{
+            id: nativeToolCallId,
+            type: 'function',
+            function: { name: toolName, arguments: JSON.stringify(params) },
+          }],
+        } as any);
+        conversationTurns.push({
+          role: 'tool',
+          tool_call_id: nativeToolCallId,
+          content: JSON.stringify(toolRes.data || toolRes.error || { success: toolRes.success }),
         });
 
         await new Promise((r) => setTimeout(r, 300));
@@ -300,16 +318,14 @@ export class AutonomousPlanner {
   }
 
   private async getSenseNovaDecision(
-    chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
+    chatHistory: { role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }[],
     imageAttachments: { content: string; type: string; name: string }[],
     shouldStop: () => boolean,
-    onStreamStatus?: (statusText: string) => void
+     onStreamStatus?: (statusText: string) => void,
+     onStreamText?: (partialText: string) => void,
   ): Promise<UniversalResponseFormat> {
     try {
-      const messages: Array<{
-        role: 'user' | 'assistant' | 'system';
-        content: string | Array<ChatCompletionContentPartText | ChatCompletionContentPartImage>;
-      }> = [
+      const messages: Array<any> = [
         { role: 'system', content: UNIVERSAL_AGENT_SYSTEM_PROMPT },
         ...chatHistory,
       ];
@@ -318,6 +334,9 @@ export class AutonomousPlanner {
         model: this.modelName,
         messages,
         temperature: 0.2,
+        reasoning_effort: 'none',
+        tools: getNativeToolDefinitions(),
+        tool_choice: 'auto',
       };
 
       if (imageAttachments.length > 0) {
@@ -363,11 +382,23 @@ export class AutonomousPlanner {
           this.openai.chat.completions.create(requestBody as any, { signal: abortController.signal }),
           this.rejectAfter(STREAM_TIMEOUT_MS, 'Stream AI timeout sebelum menerima respons.'),
         ]);
-        const rawContent = await Promise.race<string>([
-          this.collectResponseContent(response, shouldStop, abortController, onStreamStatus),
+        const nativeResponse = await Promise.race<NativeDecision>([
+           this.collectResponseContent(response, shouldStop, abortController, onStreamStatus, onStreamText),
           this.rejectAfter(STREAM_TIMEOUT_MS, 'Stream AI timeout saat membaca delta.'),
         ]);
-        return ActionParser.parseUniversalAgentResponse(rawContent);
+        if (nativeResponse.toolCalls.length > 0) {
+          const toolCall = nativeResponse.toolCalls[0];
+          let parameters: SuperAgentToolParams = {};
+          try { parameters = JSON.parse(toolCall.arguments || '{}') as SuperAgentToolParams; } catch { /* malformed args are handled by the executor */ }
+          return {
+            thought: 'Memilih aksi yang diperlukan.',
+            plan_step: 'Menjalankan aksi browser.',
+            tool_call: { name: toolCall.name as any, parameters },
+            reply: '',
+            nativeToolCallId: toolCall.id,
+          };
+        }
+        return ActionParser.parseUniversalAgentResponse(nativeResponse.content);
       } finally {
         clearTimeout(timeoutId);
         clearInterval(stopPollId);
@@ -380,7 +411,7 @@ export class AutonomousPlanner {
         const fallbackResponse = await Promise.race<OpenAI.Chat.Completions.ChatCompletion>([
           this.openai.chat.completions.create({
             model: this.modelName,
-            messages: chatHistory,
+            messages: chatHistory as any,
             temperature: 0.2,
           } as any),
           this.rejectAfter(FALLBACK_TIMEOUT_MS, 'Mode kompatibilitas juga timeout.'),
@@ -390,7 +421,7 @@ export class AutonomousPlanner {
       }
       if (errorMsg.includes('image') || errorMsg.includes('vision') || errorMsg.includes('multimodal')) {
         console.error('[AutonomousPlanner] Vision not supported by model:', this.modelName);
-        const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
+        const messages: Array<{ role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }> = [
           { role: 'system', content: UNIVERSAL_AGENT_SYSTEM_PROMPT },
           ...chatHistory,
           {
@@ -401,7 +432,7 @@ export class AutonomousPlanner {
 
         const response = await this.openai.chat.completions.create({
           model: this.modelName,
-          messages,
+          messages: messages as any,
           temperature: 0.2,
         });
 
@@ -428,10 +459,18 @@ export class AutonomousPlanner {
     response: { choices: Array<{ message: { content?: string | null } }> } | AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>,
     shouldStop: () => boolean,
     abortController: AbortController,
-    onStreamStatus?: (statusText: string) => void,
-  ): Promise<string> {
-    if (!this.isAsyncIterable(response)) return response.choices[0]?.message?.content || '';
+     onStreamStatus?: (statusText: string) => void,
+     onStreamText?: (partialText: string) => void,
+  ): Promise<NativeDecision> {
+    if (!this.isAsyncIterable(response)) {
+      const message = response.choices[0]?.message as { content?: string | null; tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }> };
+      return {
+        content: message.content || '',
+        toolCalls: (message.tool_calls || []).map((call) => ({ id: call.id || crypto.randomUUID(), name: call.function?.name || '', arguments: call.function?.arguments || '{}' })),
+      };
+    }
     let content = '';
+    const toolCalls = new Map<number, NativeToolCall>();
     for await (const chunk of response) {
       if (shouldStop()) {
         abortController.abort();
@@ -439,9 +478,24 @@ export class AutonomousPlanner {
       }
       const delta = chunk.choices?.[0]?.delta?.content || '';
       content += delta;
+      // SenseNova streams normal answer text in delta.content. Never stream
+      // JSON/tool arguments: those are withheld until the native call is complete.
+      if (delta && !content.trimStart().startsWith('{') && !content.includes('```json')) {
+        onStreamText?.(content);
+      }
+      const deltas = (chunk.choices?.[0]?.delta as { tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } | undefined)?.tool_calls || [];
+      for (const call of deltas) {
+        const index = call.index || 0;
+        const current = toolCalls.get(index) || { id: '', name: '', arguments: '' };
+        current.id += call.id || '';
+        current.name += call.function?.name || '';
+        current.arguments += call.function?.arguments || '';
+        toolCalls.set(index, current);
+        if (current.name) onStreamStatus?.('Menyiapkan langkah yang diperlukan...');
+      }
       if (content.length % 80 < delta.length) onStreamStatus?.('Menyiapkan jawaban...');
     }
-    return content;
+    return { content, toolCalls: [...toolCalls.values()] };
   }
 
   private rejectAfter<T>(milliseconds: number, message: string): Promise<T> {

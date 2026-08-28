@@ -7,6 +7,20 @@ export interface ToolDefinition {
   whenToUse: string;
   category: 'context' | 'vision' | 'interaction' | 'safety' | 'workflow';
   requiresPage: boolean;
+  parameters?: NativeToolDefinition['function']['parameters'];
+}
+
+export interface NativeToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, { type: string; description?: string }>;
+      additionalProperties: boolean;
+    };
+  };
 }
 
 export const TOOL_CATALOG: ToolDefinition[] = [
@@ -45,4 +59,34 @@ export const TOOL_NAMES = new Set<ToolName>(TOOL_CATALOG.map((tool) => tool.name
 
 export function formatToolCatalogForPrompt(): string {
   return TOOL_CATALOG.map((tool, index) => `${index + 1}. ${tool.name}: ${tool.description} Gunakan saat: ${tool.whenToUse}`).join('\n');
+}
+
+export function getNativeToolDefinitions(): NativeToolDefinition[] {
+  return TOOL_CATALOG.filter((tool) => tool.name !== 'finish_task').map((tool) => ({
+    type: 'function' as const,
+    function: {
+      name: tool.name,
+      description: `${tool.description} ${tool.whenToUse}`,
+      parameters: tool.parameters || defaultToolParameters(),
+    },
+  }));
+}
+
+function defaultToolParameters(): NativeToolDefinition['function']['parameters'] {
+  return {
+    type: 'object',
+    properties: {
+      x: { type: 'number', description: 'Viewport X coordinate in pixels.' },
+      y: { type: 'number', description: 'Viewport Y coordinate in pixels.' },
+      startX: { type: 'number' }, startY: { type: 'number' },
+      endX: { type: 'number' }, endY: { type: 'number' },
+      selector: { type: 'string' }, text: { type: 'string' }, query: { type: 'string' },
+      direction: { type: 'string', description: 'up or down' }, amount: { type: 'number' },
+      keys: { type: 'array', description: 'Keyboard key names' }, wait_ms: { type: 'number' },
+      details: { type: 'string' }, actionName: { type: 'string' }, timeframe: { type: 'string' },
+      side: { type: 'string' }, lotSize: { type: 'string' }, sl: { type: 'string' }, tp: { type: 'string' },
+      buttonSelector: { type: 'string' }, goalPattern: { type: 'string' }, actionSequence: { type: 'array' },
+    },
+    additionalProperties: true,
+  };
 }

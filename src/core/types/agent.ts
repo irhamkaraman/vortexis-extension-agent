@@ -7,7 +7,7 @@ export interface FileAttachment {
   isImage: boolean;
 }
 
-export type Role = 'user' | 'assistant' | 'system';
+export type Role = 'user' | 'assistant' | 'system' | 'tool';
 
 export type AgentStatus = 'idle' | 'analyzing' | 'planning' | 'executing' | 'completed' | 'failed';
 
@@ -166,6 +166,7 @@ export interface UniversalResponseFormat {
   is_goal_achieved?: boolean;
   next_step?: SuperAgentNextAction;
   live_status_message?: string;
+  nativeToolCallId?: string;
 }
 
 export interface ToolResult {
