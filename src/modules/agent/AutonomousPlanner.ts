@@ -56,15 +56,6 @@ export class AutonomousPlanner {
     onRequireApproval?: (actionDesc: string, onApprove: () => void, onReject: () => void) => void,
     maxIterations: number = 12
   ): Promise<void> {
-    if (this.isCasualConversation(userGoal)) {
-      onStepUpdate({
-        id: `msg-casual-${Date.now()}`,
-        role: 'assistant',
-        content: 'Hai! Aku VORTEXIS, asisten AI yang bisa membantu membaca halaman, mengekstrak data, mengisi form, dan menjalankan aksi browser sesuai kebutuhanmu.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }, { statusText: 'Jawaban siap.', streamingComplete: true });
-      return;
-    }
     const imageAttachments = historyMessages
       .filter((m) => m.attachments && m.attachments.length > 0)
       .flatMap((m) => m.attachments!.filter((a) => a.isImage))
@@ -447,12 +438,6 @@ export class AutonomousPlanner {
 
   private isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
     return typeof value === 'object' && value !== null && Symbol.asyncIterator in value;
-  }
-
-  private isCasualConversation(userGoal: string): boolean {
-    const text = userGoal.trim().toLowerCase();
-    if (/(baca|rangkum|analisis|ambil|cari|klik|isi|ketik|scroll|screenshot|situs|halaman|website|form|chart|grafik|data)/i.test(text)) return false;
-    return /^(hai|halo|hi|hey|pagi|siang|sore|malam|apa kabar|kamu siapa|siapa kamu|nama kamu siapa|siapa nama kamu|nama mu siapa|siapa nama mu|kenalkan diri)/i.test(text);
   }
 
   private async collectResponseContent(

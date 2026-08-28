@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { ChatMessage } from '../../core/types/agent';
 
 interface MessageItemProps {
@@ -16,6 +18,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
   // Tool calls and internal reasoning are intentionally never rendered.
   if (!isUser && message.toolCall) return null;
+
+  const markdownSchema = {
+    ...defaultSchema,
+    tagNames: [...(defaultSchema.tagNames || []), 'u', 'mark'],
+    attributes: {
+      ...defaultSchema.attributes,
+      a: ['href', 'title', 'target', 'rel'],
+      code: ['className'],
+    },
+    protocols: {
+      ...defaultSchema.protocols,
+      href: ['http', 'https', 'mailto'],
+    },
+  };
 
   return (
       <div className={`vortexis-message-row ${isUser ? 'vortexis-message-row-user' : 'vortexis-message-row-agent'}`}>
@@ -34,7 +50,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
         {/* Message Content */}
         {message.content ? (
           <div className="prose prose-invert prose-xs leading-relaxed max-w-none break-words font-sans overflow-wrap-anywhere">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[[rehypeRaw], [rehypeSanitize, markdownSchema]]}
+              components={{
+                a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer noopener" />,
+                u: ({ node: _node, ...props }) => <u {...props} />,
+                table: ({ node: _node, ...props }) => <div className="vortexis-markdown-table"><table {...props} /></div>,
+                pre: ({ node: _node, ...props }) => <pre className="vortexis-markdown-code" {...props} />,
+              }}
+            >{message.content}</ReactMarkdown>
           </div>
         ) : null}
 

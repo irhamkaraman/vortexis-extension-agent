@@ -55,9 +55,7 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   return (
     <div className="vortexis-live-activity" role="status" aria-live="polite">
       <div className="vortexis-thinking-line">
-        <span className="vortexis-thinking-orb" aria-hidden="true" />
         <span className="vortexis-thinking-label">{derivedStatus}</span>
-        <span className="vortexis-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
         <button type="button" onClick={() => setThoughtOpen((open) => !open)} className="vortexis-thinking-toggle" aria-label="Tampilkan status proses">
            {thoughtOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
         </button>

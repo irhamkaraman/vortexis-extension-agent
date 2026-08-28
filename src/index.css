@@ -259,6 +259,16 @@
 .vortexis-activity-copy code { max-width: 100%; padding: 5px 7px; overflow: auto; color: #8fdcff; background: rgba(10,18,28,.5); border-radius: 5px; font: 9px/1.4 ui-monospace, monospace; }
 .vortexis-activity-spin { animation: vortexis-spinner .8s linear infinite; }
 .vortexis-step-details pre { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; color: #9ca7b5; }
+.vortexis-agent-content h1,.vortexis-agent-content h2,.vortexis-agent-content h3,.vortexis-agent-content h4,.vortexis-agent-content h5,.vortexis-agent-content h6 { margin: 1em 0 .35em; color: #f1f5f9; font-weight: 700; line-height: 1.25; }
+.vortexis-agent-content h1 { font-size: 1.35em; }.vortexis-agent-content h2 { font-size: 1.2em; }.vortexis-agent-content h3 { font-size: 1.08em; }.vortexis-agent-content h4,.vortexis-agent-content h5,.vortexis-agent-content h6 { font-size: 1em; }
+.vortexis-agent-content strong { color: #f8fafc; font-weight: 700; }.vortexis-agent-content em { color: #cbd5e1; }.vortexis-agent-content del { color: #94a3b8; }
+.vortexis-agent-content a { color: #67d8ff; text-decoration: underline; text-underline-offset: 2px; }.vortexis-agent-content a:hover { color: #b4edff; }
+.vortexis-agent-content blockquote { margin: .75em 0; padding: .4em .8em; color: #a8b7c8; border-left: 2px solid #55d6ff; background: rgba(85,214,255,.06); }
+.vortexis-agent-content ul,.vortexis-agent-content ol { margin: .5em 0; padding-left: 1.4em; }.vortexis-agent-content li { margin: .2em 0; }
+.vortexis-agent-content hr { margin: 1em 0; border: 0; border-top: 1px solid rgba(148,163,184,.25); }.vortexis-agent-content code { padding: .12em .35em; color: #b9eaff; background: rgba(148,163,184,.12); border-radius: 4px; font-family: ui-monospace, monospace; }
+.vortexis-markdown-code { margin: .7em 0; padding: .8em; overflow-x: auto; color: #c9f0ff; background: rgba(7,12,19,.75); border: 1px solid rgba(85,214,255,.16); border-radius: 7px; font: 10px/1.55 ui-monospace, monospace; white-space: pre; }
+.vortexis-markdown-code code { padding: 0; background: transparent; }.vortexis-markdown-table { max-width: 100%; overflow-x: auto; margin: .7em 0; }
+.vortexis-agent-content table { width: 100%; border-collapse: collapse; font-size: .9em; }.vortexis-agent-content th,.vortexis-agent-content td { padding: 6px 8px; border: 1px solid rgba(148,163,184,.2); text-align: left; }.vortexis-agent-content th { color: #e6f7ff; background: rgba(85,214,255,.1); }
 
 @keyframes vortexis-message-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes vortexis-spinner { to { transform: rotate(360deg); } }

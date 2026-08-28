@@ -162,8 +162,6 @@ export class ActionParser {
 
   private static cleanDisplayText(text: string): string {
     return text
-      .replace(/^```(?:json|text)?\s*/i, '')
-      .replace(/\s*```$/i, '')
       .replace(/\\n/g, '\n')
       .replace(/\\r/g, '')
       .replace(/\\t/g, '\t')
