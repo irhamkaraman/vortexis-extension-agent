@@ -101,6 +101,14 @@ export class CoordinateDriver {
         targetEl = document.elementFromPoint(x, y);
       }
 
+      // If element is an inner text/span/icon inside an interactive container (like <a> or <button>), traverse up to the interactive parent!
+      if (targetEl) {
+        const interactiveAncestor = targetEl.closest('a[href], button, [role="button"], input, select, textarea');
+        if (interactiveAncestor) {
+          targetEl = interactiveAncestor;
+        }
+      }
+
       if (!targetEl) {
         targetEl = this.findNearestInteractiveElement(x, y, snapRadiusPx);
         if (targetEl) {
@@ -113,28 +121,38 @@ export class CoordinateDriver {
       }
 
       if (!targetEl) {
-        return { success: false, error: `Element not found at (x: ${x}, y: ${y}). Nearest interactive element also not found within ${snapRadiusPx}px.` };
+        return { success: false, error: `Element not found at (x: ${x}, y: ${y}).` };
       }
 
       const htmlEl = targetEl as HTMLElement;
-      htmlEl.scrollIntoView({ behavior: 'instant', block: 'center' });
-      new Promise((r) => setTimeout(r, 200));
-
       this.showClickGlow(clickX, clickY);
 
       htmlEl.focus();
-      htmlEl.click();
 
+      // Trigger synthetic mouse events
       ['mousedown', 'mouseup', 'click'].forEach((evtName) => {
         const evt = new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY });
         htmlEl.dispatchEvent(evt);
       });
 
+      // Also call native click method directly
+      if (typeof htmlEl.click === 'function') {
+        htmlEl.click();
+      }
+
+      // If it's an anchor tag with href, navigate directly as fallback
+      if (htmlEl.tagName.toLowerCase() === 'a' && (htmlEl as HTMLAnchorElement).href) {
+        const href = (htmlEl as HTMLAnchorElement).href;
+        if (href && !href.startsWith('javascript:')) {
+          window.location.href = href;
+        }
+      }
+
       const info = this.describeElement(htmlEl);
       return {
         success: true,
         result: fallbackUsed
-          ? `Snapped: clicked "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)}). Original target (${x}, ${y}) had no element.`
+          ? `Snapped: clicked "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)}).`
           : `Clicked "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)})`,
       };
     } catch (err: any) {
