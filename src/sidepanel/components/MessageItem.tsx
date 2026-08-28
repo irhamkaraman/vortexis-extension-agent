@@ -13,23 +13,18 @@ interface MessageItemProps {
 
 export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }) => {
   const isUser = message.role === 'user';
+  const isIntermediate = !isUser && !message.content && (message.toolCall || message.toolResult || message.thinkingContent);
 
-  // Show thinking collapsible: expanded during streaming, collapsed after
-  const [thinkingOpen, setThinkingOpen] = useState(Boolean(isStreaming));
-  useEffect(() => {
-    // Auto-collapse when streaming finishes
-    if (!isStreaming && message.thinkingContent) {
-      setThinkingOpen(false);
-    }
-  }, [isStreaming, message.thinkingContent]);
+  // Show thinking collapsible: initially expanded if streaming
+  const [thinkingOpen, setThinkingOpen] = useState(true);
 
   // Do not render empty AI message container if it's currently streaming in ThinkingIndicator
-  if (!isUser && !message.content && !message.toolCall && !message.thinkingContent) {
+  if (!isUser && !message.content && !message.toolCall && !message.thinkingContent && !message.toolResult) {
     return null;
   }
 
-  // Tool calls and internal reasoning are intentionally never rendered.
-  if (!isUser && message.toolCall) return null;
+  // Hide raw tool calls that have no result yet (unless they have thinking/content)
+  if (!isUser && message.toolCall && !message.toolResult && !message.content && !message.thinkingContent) return null;
 
   const markdownSchema = {
     ...defaultSchema,
@@ -45,6 +40,45 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
     },
   };
 
+  // -------------------------------------------------------------
+  // INTERMEDIATE STEP RENDERING (Trajectory / Chain of Thought)
+  // -------------------------------------------------------------
+  if (isIntermediate) {
+    return (
+      <div className="vortexis-message-row vortexis-message-row-agent !mt-1 !mb-1 opacity-90">
+        <div className="w-full flex flex-col gap-1.5 pl-2">
+          {message.thinkingContent && (
+            <div className="vortexis-thinking-section">
+              <button type="button" className="vortexis-thinking-toggle-btn" onClick={() => setThinkingOpen((v) => !v)}>
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" strokeWidth={1.5} />
+                <span className="vortexis-thinking-toggle-label">{thinkingOpen ? 'Menyembunyikan proses berpikir' : 'Tampilkan proses berpikir'}</span>
+                {thinkingOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+              </button>
+              {thinkingOpen && (
+                <div className="vortexis-thinking-content">
+                  {message.thinkingContent.split('\n').filter(Boolean).map((line, i) => (
+                    <p key={i} className="vortexis-thinking-line">{line}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {message.toolResult && (
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 pl-3 py-1 ml-1.5 border-l border-slate-700/50">
+               <ChevronRight className="w-3 h-3 text-cyan-600" />
+               <span className="font-mono text-cyan-400/80">{message.toolCall?.name || 'Executed Tool'}</span>
+               <span className="opacity-60">{message.toolResult.success ? 'berhasil diselesaikan' : `gagal: ${message.toolResult.error || message.toolResult.warningMessage}`}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // FINAL OR USER MESSAGE RENDERING
+  // -------------------------------------------------------------
   return (
       <div className={`vortexis-message-row ${isUser ? 'vortexis-message-row-user' : 'vortexis-message-row-agent'}`}>
       <div className="vortexis-message-meta">
@@ -59,7 +93,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
             : 'vortexis-agent-content text-neutral-200'
         }`}
       >
-        {/* Thinking / Reasoning Section (Gemini-style collapsible) */}
+        {/* Thinking / Reasoning Section for Final Message (if any) */}
         {!isUser && message.thinkingContent && (
           <div className="vortexis-thinking-section">
             <button type="button" className="vortexis-thinking-toggle-btn" onClick={() => setThinkingOpen((v) => !v)}>
@@ -106,7 +140,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
           </div>
         )}
 
-        {/* Embedded Tool Execution Card */}
+        {/* Embedded Tool Execution Card (Fallback for final message) */}
+        {message.toolResult && (
+          <div className="mt-3 p-2.5 bg-slate-800/80 rounded-lg border border-slate-700/50 text-xs text-slate-300 backdrop-blur-sm shadow-sm">
+            <div className="font-semibold text-slate-100 flex items-center gap-1.5">
+               <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+               <span>Aksi Browser Selesai</span>
+            </div>
+            <div className="mt-1.5 opacity-90 font-mono text-[10px] leading-relaxed break-all">
+               {message.toolResult.success ? (
+                 <span className="text-emerald-400">Berhasil dieksekusi.</span>
+               ) : (
+                 <span className="text-rose-400">Gagal: {message.toolResult.error || message.toolResult.warningMessage}</span>
+               )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

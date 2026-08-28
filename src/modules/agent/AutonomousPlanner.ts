@@ -138,16 +138,23 @@ export class AutonomousPlanner {
             id: stepMsgId,
             role: 'assistant',
             content: currentText,
+            thinkingContent: streamedThinking || undefined,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }, { isExecutingTool: false });
 
           await new Promise((r) => setTimeout(r, 15));
         }
 
+        let finalThought = streamedThinking;
+        if (!finalThought && turnResponse.thought && turnResponse.thought !== 'Direct response') {
+          finalThought = turnResponse.thought;
+        }
+
         const finalStepMsg: ChatMessage = {
           id: stepMsgId,
           role: 'assistant',
           content: fullReplyText,
+          thinkingContent: finalThought || undefined,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
