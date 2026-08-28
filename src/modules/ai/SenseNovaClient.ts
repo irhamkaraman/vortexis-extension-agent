@@ -5,7 +5,7 @@ import { TRADING_COPILOT_SYSTEM_PROMPT } from './PromptTemplates';
 export class SenseNovaClient {
   private openai: OpenAI;
   private modelName: string;
-  private defaultKey: string = 'sk-bYHO7aecKIXDotP3seUUd5jWfQu3e2gs';
+  private defaultKey: string = 'sk-1aoBmAqJK9qd4Wu9DrhZq3PPoi7RlvQq';
 
   constructor(
     apiKey: string = '',

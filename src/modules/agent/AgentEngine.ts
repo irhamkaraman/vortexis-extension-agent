@@ -5,7 +5,7 @@ import { TRADING_COPILOT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
 export class AgentEngine {
   private openai: OpenAI;
   private modelName: string = 'sensenova-6.8-flash-lite';
-  private hardcodedApiKey: string = 'sk-bYHO7aecKIXDotP3seUUd5jWfQu3e2gs';
+  private hardcodedApiKey: string = 'sk-1aoBmAqJK9qd4Wu9DrhZq3PPoi7RlvQq';
   private baseURL: string = 'https://token.sensenova.ai/v1';
 
   constructor() {
