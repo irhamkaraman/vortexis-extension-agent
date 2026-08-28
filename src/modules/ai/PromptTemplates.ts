@@ -1,5 +1,5 @@
 import { formatToolCatalogForPrompt } from '../agent/ToolCatalog';
-import { PluginRegistry } from '../../plugins/core/PluginRegistry';
+import { SkillRegistry } from '../agent/SkillRegistry';
 
 export const UNIVERSAL_AGENT_SYSTEM_PROMPT = `
 You are VORTEXIS — Fast Autonomous In-Browser AI Copilot.
@@ -14,8 +14,8 @@ INSTRUCTIONS:
 AVAILABLE TOOLS & PLUGINS:
 ${formatToolCatalogForPrompt()}
 
-AVAILABLE SKILLS:
-${PluginRegistry.formatSkillsForPrompt() || 'Standard browser assistance.'}
+SKILL REGISTRY (Loaded Guidelines):
+${SkillRegistry.formatSkillsForPrompt() || 'Standard browser assistance.'}
 `.trim();
 
 export const SUPER_AGENT_SYSTEM_PROMPT = UNIVERSAL_AGENT_SYSTEM_PROMPT;
