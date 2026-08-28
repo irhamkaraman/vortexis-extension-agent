@@ -20,11 +20,21 @@ export class ToolRegistry {
 
   public async executeTool(name: ToolName, parameters: SuperAgentToolParams): Promise<ToolResult> {
     if (name === 'list_available_tools') {
+      const pluginTools = PluginRegistry.getToolPlugins().map((p) => ({
+        name: p.definition.name,
+        label: p.definition.name,
+        description: p.definition.description,
+        parameters: p.definition.parameters,
+        category: 'plugin',
+      }));
+
       return {
         success: true,
         data: {
-          title: 'Kemampuan VORTEXIS',
-          tools: TOOL_CATALOG.map(({ name, label, description, whenToUse, category }) => ({ name, label, description, whenToUse, category })),
+          title: 'Kemampuan & Tools VORTEXIS',
+          coreTools: TOOL_CATALOG.map(({ name, label, description, whenToUse, category }) => ({ name, label, description, whenToUse, category })),
+          plugins: pluginTools,
+          usageInstruction: 'Untuk menggunakan tool apapun, panggil namanya dengan parameter JSON yang sesuai.',
         },
       };
     }
