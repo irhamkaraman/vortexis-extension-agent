@@ -57,7 +57,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
   const latestThought = lastAssistantMsg?.thoughtProcess?.thought || lastAssistantMsg?.thoughtProcess?.current_observation;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-black text-neutral-200 w-full max-w-full">
+    <div className="vortexis-chat-panel flex-1 flex flex-col overflow-hidden text-neutral-200 w-full max-w-full">
       {/* Minimal Header Bar */}
       <MinimalHeader
         onClearChat={onClearChat}
