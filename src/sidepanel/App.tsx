@@ -23,6 +23,23 @@ export const App: React.FC = () => {
   const [statusText, setStatusText] = useState<string>('Menyiapkan jawaban...');
   const [hasGreeted, setHasGreeted] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (!isThinking) return;
+    const phases = [
+      'Menganalisis permintaan...',
+      'Menerima respons AI...',
+      'Menyusun konteks yang relevan...',
+      'Menyiapkan jawaban...',
+    ];
+    let phaseIndex = phases.indexOf(statusText);
+    if (phaseIndex < 0) phaseIndex = 0;
+    const timer = window.setInterval(() => {
+      phaseIndex = (phaseIndex + 1) % phases.length;
+      setStatusText(phases[phaseIndex]);
+    }, 1400);
+    return () => window.clearInterval(timer);
+  }, [isThinking]);
+
   const [pendingTradeApproval, setPendingTradeApproval] = useState<{
     tradePlan: TradeDetails;
     onApprove: () => void;
