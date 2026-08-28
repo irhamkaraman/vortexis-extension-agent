@@ -548,7 +548,16 @@ export class AutonomousPlanner {
         onStreamThought?.(reasoningContent);
         onStreamStatus?.('Sedang berpikir...');
       }
-      if (text && !content.trimStart().startsWith('{') && !content.includes('```json')) onStreamText?.(content);
+      if (text && !content.trimStart().startsWith('{') && !content.includes('```json')) {
+        // Strip hallucinated tool call tags from live text stream
+        const cleanedContent = content
+          .replace(/<[a-zA-Z0-9_=-]+>[\s\S]*?<\/[a-zA-Z0-9_=-]+>/gi, '')
+          .replace(/<[a-zA-Z0-9_=-]+>/gi, '')
+          .replace(/<\/[a-zA-Z0-9_=-]+>/gi, '')
+          .replace(/(?:tool_call|function_calls|function|action)[\s:=]+[a-zA-Z0-9_]+/gi, '')
+          .trim();
+        onStreamText?.(cleanedContent);
+      }
       for (const call of delta?.tool_calls || []) {
         const index = call.index || 0;
         const current = toolCalls.get(index) || { id: '', name: '', arguments: '' };

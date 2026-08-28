@@ -55,31 +55,47 @@ export class ActionParser {
       return this.validateUniversalFormat(parsed);
     } catch {
       const rawText = rawResponse.trim();
-      
-      // Aggressively match various hallucinated tool call formats from SenseNova
-      const toolMatch = 
-        rawText.match(/<(?:tool_name|tool_call|function|action)[^>]*?>\s*([a-zA-Z0-9_]+)\s*<\//i) ||
-        rawText.match(/<(?:tool_name|tool_call|function|action)[=>\s"']*([a-zA-Z0-9_]+)[^>]*>/i) ||
-        rawText.match(/(?:tool_call|function|action|tool)[\s:=]+([a-zA-Z0-9_]+)/i);
-      
       let tool_call = null;
       let replyText = this.cleanDisplayText(rawResponse);
-      
-      if (toolMatch && toolMatch[1]) {
-        const rawToolName = toolMatch[1].trim();
-        if (TOOL_NAMES.has(rawToolName as ToolName)) {
-           tool_call = {
-             name: rawToolName as ToolName,
-             parameters: {},
-           };
-           // Aggressively strip out hallucinated tags from the visible reply
-           replyText = replyText
-             .replace(/<(?:tool_name|tool_call|function|action)[^>]*?>.*?<\/(?:tool_name|tool_call|function|action)>/gi, '')
-             .replace(/<(?:tool_name|tool_call|function|action)[^>]*>/gi, '')
-             .replace(/(?:tool_call|function|action|tool)[\s:=]+([a-zA-Z0-9_]+)/gi, '')
-             .trim();
+
+      // 1. Check known tool names directly if formatted with tags or keywords
+      for (const knownTool of TOOL_NAMES) {
+        // Look for <tag>knownTool</tag>, <function_calls> knownTool </function_calls>, <function=knownTool>, tool: knownTool, etc.
+        const regex = new RegExp(`<(?:[a-zA-Z0-9_-]+)[^>]*>\\s*${knownTool}\\s*<\\/|=(?:["']?)${knownTool}(?:["']?)|<(?:[a-zA-Z0-9_-]+)>\\s*${knownTool}\\b|\\b(?:tool_call|function_calls|function|call|action)[:\\s]+${knownTool}\\b`, 'i');
+        if (regex.test(rawText)) {
+          tool_call = {
+            name: knownTool,
+            parameters: {},
+          };
+          break;
         }
       }
+
+      // 2. Generic fallback match for XML tags
+      if (!tool_call) {
+        const toolMatch = 
+          rawText.match(/<(?:tool_name|tool_call|function|action|function_calls)[^>]*?>\s*([a-zA-Z0-9_]+)\s*<\//i) ||
+          rawText.match(/<(?:tool_name|tool_call|function|action|function_calls)[=>\s"']*([a-zA-Z0-9_]+)[^>]*>/i) ||
+          rawText.match(/(?:tool_call|function_calls|function|action|tool)[\s:=]+([a-zA-Z0-9_]+)/i);
+
+        if (toolMatch && toolMatch[1]) {
+          const candidate = toolMatch[1].trim() as ToolName;
+          if (TOOL_NAMES.has(candidate)) {
+            tool_call = {
+              name: candidate,
+              parameters: {},
+            };
+          }
+        }
+      }
+
+      // Clean all XML-like tags and leaked tool call syntax from the user-facing text
+      replyText = replyText
+        .replace(/<[a-zA-Z0-9_=-]+>[\s\S]*?<\/[a-zA-Z0-9_=-]+>/gi, '')
+        .replace(/<[a-zA-Z0-9_=-]+>/gi, '')
+        .replace(/<\/[a-zA-Z0-9_=-]+>/gi, '')
+        .replace(/(?:tool_call|function_calls|function|action)[\s:=]+[a-zA-Z0-9_]+/gi, '')
+        .trim();
 
       const reply = this.extractReplyFromBrokenJson(rawResponse);
       return {
