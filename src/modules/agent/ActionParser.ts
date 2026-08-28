@@ -55,7 +55,12 @@ export class ActionParser {
       return this.validateUniversalFormat(parsed);
     } catch {
       const rawText = rawResponse.trim();
-      const toolMatch = rawText.match(/<tool_name>\s*(.*?)\s*<\/tool_name>/i) || rawText.match(/tool_call:\s*([a-zA-Z0-9_]+)/i);
+      
+      // Aggressively match various hallucinated tool call formats from SenseNova
+      const toolMatch = 
+        rawText.match(/<(?:tool_name|tool_call|function|action)[^>]*?>\s*([a-zA-Z0-9_]+)\s*<\//i) ||
+        rawText.match(/<(?:tool_name|tool_call|function|action)[=>\s"']*([a-zA-Z0-9_]+)[^>]*>/i) ||
+        rawText.match(/(?:tool_call|function|action|tool)[\s:=]+([a-zA-Z0-9_]+)/i);
       
       let tool_call = null;
       let replyText = this.cleanDisplayText(rawResponse);
@@ -67,7 +72,12 @@ export class ActionParser {
              name: rawToolName as ToolName,
              parameters: {},
            };
-           replyText = replyText.replace(/<tool_name>.*?<\/tool_name>/gi, '').trim();
+           // Aggressively strip out hallucinated tags from the visible reply
+           replyText = replyText
+             .replace(/<(?:tool_name|tool_call|function|action)[^>]*?>.*?<\/(?:tool_name|tool_call|function|action)>/gi, '')
+             .replace(/<(?:tool_name|tool_call|function|action)[^>]*>/gi, '')
+             .replace(/(?:tool_call|function|action|tool)[\s:=]+([a-zA-Z0-9_]+)/gi, '')
+             .trim();
         }
       }
 
