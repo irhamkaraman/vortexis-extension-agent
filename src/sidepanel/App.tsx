@@ -22,7 +22,6 @@ export const App: React.FC = () => {
   const [isBusy, setIsBusy] = useState<boolean>(false);
   const [activeToolName, setActiveToolName] = useState<string>('');
   const [statusText, setStatusText] = useState<string>('Menyiapkan jawaban...');
-  const [hasGreeted, setHasGreeted] = useState<boolean>(false);
   const [activity, setActivity] = useState<AgentActivityState>({ isActive: false, statusText: '', steps: [] });
 
   useEffect(() => {
@@ -51,24 +50,6 @@ export const App: React.FC = () => {
   const stopSignalRef = useRef<boolean>(false);
   const isBusyRef = useRef<boolean>(false);
   const runIdRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!hasGreeted) {
-      setHasGreeted(true);
-      const greetings = [
-        'Hai! Aku VORTEXIS, asisten otomatis di browser kamu.',
-        'Halo! Senang bertemu denganmu.',
-        'Hai bos, aku siap kerja!',
-      ];
-      const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-      setMessages([{
-        id: 'msg-greeting-0',
-        role: 'assistant',
-        content: `${greeting}\n\nMau aku bantu apa hari ini? Bisa otomasi browsing, analisis halaman, isi form, atau analisis chart trading — tinggal bilang aja!`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }]);
-    }
-  }, []);
 
   const handleSendMessage = async (text: string, attachments: FileAttachment[]) => {
     if (isBusyRef.current) return;

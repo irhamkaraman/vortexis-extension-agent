@@ -86,17 +86,13 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
       <div className="vortexis-message-stream flex-1 overflow-y-auto px-3 py-3 space-y-2 w-full max-w-full overflow-x-hidden">
         {messages.length === 0 && !isThinking ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-neutral-500 p-6 space-y-4 font-mono">
-            <div className="w-12 h-12 rounded-xl border border-neutral-800 bg-neutral-950 flex items-center justify-center text-neutral-400 shadow-lg shadow-emerald-500/5">
-              <Terminal className="w-5 h-5" strokeWidth={1.5} />
-            </div>
+            <div className="vortexis-welcome-mark"><Terminal className="w-5 h-5" strokeWidth={1.5} /></div>
             <div>
-              <h3 className="font-bold text-neutral-200 text-xs tracking-wider uppercase mb-1">VORTEXIS COPILOT</h3>
-              <p className="text-[11px] text-neutral-400 mt-1 max-w-xs leading-relaxed font-sans">
-                Hai! Aku siap membantu. Mau otomasi browsing, isi form, analisis chart, atau cari data?
-              </p>
-              <p className="text-[10px] text-neutral-600 mt-2 max-w-xs leading-relaxed font-sans">
-                Cukup ketik instruksi atau seret file ke sini — aku akan melakukan yang terbaik.
-              </p>
+              <h3 className="vortexis-welcome-title">Halo, bos</h3>
+              <p className="vortexis-welcome-subtitle">Apa yang ingin kita kerjakan hari ini?</p>
+              <div className="vortexis-welcome-suggestions">
+                <span>Ringkas halaman ini</span><span>Apa yang bisa kamu lakukan?</span><span>Bantu saya mengambil keputusan</span>
+              </div>
             </div>
           </div>
         ) : (

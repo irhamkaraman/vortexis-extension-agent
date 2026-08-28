@@ -91,6 +91,11 @@
   scrollbar-gutter: stable;
   padding: 18px 18px 26px;
 }
+.vortexis-welcome-mark { width: 42px; height: 42px; display: grid; place-items: center; color: #8bdfff; border: 1px solid rgba(85,214,255,.28); border-radius: 13px; background: rgba(85,214,255,.07); box-shadow: 0 0 28px rgba(85,214,255,.1); }
+.vortexis-welcome-title { color: #e8f6ff; font: 500 24px/1.15 system-ui, sans-serif; letter-spacing: -.03em; }
+.vortexis-welcome-subtitle { margin-top: 4px; color: #8999aa; font: 14px/1.4 system-ui, sans-serif; }
+.vortexis-welcome-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 18px; max-width: 340px; }
+.vortexis-welcome-suggestions span { padding: 8px 11px; color: #aebdca; border: 1px solid rgba(148,163,184,.18); border-radius: 9px; background: rgba(255,255,255,.035); font: 10px system-ui, sans-serif; }
 
 .vortexis-input-shell {
   gap: 9px;
