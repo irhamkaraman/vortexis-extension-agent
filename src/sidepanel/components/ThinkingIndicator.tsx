@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { motion } from 'motion/react';
 
 const TOOL_STATUS_MESSAGES: Record<string, string> = {
   capture_screen: 'Mengambil screenshot halaman...',
@@ -50,7 +51,7 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   const derivedStatus = statusText || (activeToolName ? TOOL_STATUS_MESSAGES[activeToolName] || `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...');
 
   return (
-    <div className="vortexis-live-activity" role="status" aria-live="polite">
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="vortexis-live-activity" role="status" aria-live="polite">
       <div className="vortexis-thinking-line">
         <span className="vortexis-thinking-orb" aria-hidden="true" />
         <span className="vortexis-thinking-label">{derivedStatus}</span>
@@ -60,6 +61,6 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
         </button>}
       </div>
       {thoughtOpen && thought && thought !== 'Direct response' && <div className="vortexis-live-thought">{thought}</div>}
-    </div>
+    </motion.div>
   );
 };

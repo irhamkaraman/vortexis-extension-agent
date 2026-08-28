@@ -12,6 +12,7 @@ interface ChatPanelProps {
   isThinking: boolean;
   isExecutingTool?: boolean;
   activeToolName?: string;
+  statusText?: string;
   onClearChat: () => void;
   onEmergencyStop: () => void;
   pendingTradeApproval?: {
@@ -26,6 +27,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
   isThinking,
   isExecutingTool,
   activeToolName,
+  statusText,
   onClearChat,
   onEmergencyStop,
   pendingTradeApproval,
@@ -53,8 +55,6 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
     }
   }, []);
 
-  const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant');
-  const latestThought = lastAssistantMsg?.thoughtProcess?.thought || lastAssistantMsg?.thoughtProcess?.current_observation;
 
   return (
     <div className="vortexis-chat-panel flex-1 flex flex-col overflow-hidden text-neutral-200 w-full max-w-full">
@@ -104,8 +104,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
         {/* Real-time Thinking & Tool Skeleton Stream Indicator */}
         {isThinking && (
           <ThinkingIndicator
-            statusText={isExecutingTool ? `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...'}
-            thought={latestThought}
+            statusText={statusText || (isExecutingTool ? 'Menjalankan langkah berikutnya...' : 'Menyiapkan jawaban...')}
             isExecutingTool={isExecutingTool}
             activeToolName={activeToolName}
           />

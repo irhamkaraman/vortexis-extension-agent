@@ -20,6 +20,7 @@ export const App: React.FC = () => {
   const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
   const [isBusy, setIsBusy] = useState<boolean>(false);
   const [activeToolName, setActiveToolName] = useState<string>('');
+  const [statusText, setStatusText] = useState<string>('Menyiapkan jawaban...');
   const [hasGreeted, setHasGreeted] = useState<boolean>(false);
 
   const [pendingTradeApproval, setPendingTradeApproval] = useState<{
@@ -79,6 +80,7 @@ export const App: React.FC = () => {
 
     setMessages((prev) => [...prev, userMsg]);
     setIsThinking(true);
+    setStatusText('Menganalisis permintaan...');
 
     try {
       await autonomousPlanner.runSuperAgentLoop(
@@ -171,6 +173,7 @@ export const App: React.FC = () => {
 
     setMessages((prev) => [...prev, userMsg]);
     setIsThinking(true);
+    setStatusText('Menjalankan langkah berikutnya...');
     setIsExecutingTool(true);
     setActiveToolName(toolName);
 
@@ -215,6 +218,7 @@ export const App: React.FC = () => {
     setIsBusy(false);
     setIsExecutingTool(false);
     setActiveToolName('');
+    setStatusText('Menyiapkan jawaban...');
     setPendingTradeApproval(null);
   };
 
@@ -226,6 +230,7 @@ export const App: React.FC = () => {
     setIsThinking(false);
     setIsExecutingTool(false);
     setActiveToolName('');
+    setStatusText('Menyiapkan jawaban...');
     setPendingTradeApproval(null);
   };
 
@@ -236,6 +241,7 @@ export const App: React.FC = () => {
         isThinking={isThinking}
         isExecutingTool={isExecutingTool}
         activeToolName={activeToolName}
+        statusText={statusText}
         onClearChat={handleClearChat}
         onEmergencyStop={handleStop}
         pendingTradeApproval={pendingTradeApproval}

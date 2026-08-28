@@ -45,7 +45,7 @@ export class AutonomousPlanner {
   public async runSuperAgentLoop(
     userGoal: string,
     historyMessages: ChatMessage[],
-    onStepUpdate: (message: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string; streamingComplete?: boolean }) => void,
+    onStepUpdate: (message: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string; statusText?: string; streamingComplete?: boolean }) => void,
     shouldStop: () => boolean,
     onRequireApproval?: (actionDesc: string, onApprove: () => void, onReject: () => void) => void,
     maxIterations: number = 12
@@ -91,7 +91,9 @@ export class AutonomousPlanner {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         }, { isExecutingTool: false });
 
-        const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments);
+        const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments, (statusText) => {
+          onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText });
+        });
 
         // A tool-call turn is an internal activity step, not a user-facing answer.
         // Only the no-tool turn becomes the final response bubble.
@@ -107,13 +109,6 @@ export class AutonomousPlanner {
             id: stepMsgId,
             role: 'assistant',
             content: currentText,
-            thoughtProcess: {
-              thought: turnResponse.thought,
-              current_observation: turnResponse.thought,
-            },
-            toolCall: turnResponse.tool_call && !isFinishSignal
-              ? { name: turnResponse.tool_call.name, parameters: turnResponse.tool_call.parameters }
-              : undefined,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }, { isExecutingTool: false });
 
@@ -124,13 +119,6 @@ export class AutonomousPlanner {
           id: stepMsgId,
           role: 'assistant',
           content: fullReplyText,
-          thoughtProcess: {
-            thought: turnResponse.thought,
-            current_observation: turnResponse.thought,
-          },
-          toolCall: turnResponse.tool_call && !isFinishSignal
-            ? { name: turnResponse.tool_call.name, parameters: turnResponse.tool_call.parameters }
-            : undefined,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
@@ -297,7 +285,8 @@ export class AutonomousPlanner {
 
   private async getSenseNovaDecision(
     chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
-    imageAttachments: { content: string; type: string; name: string }[]
+    imageAttachments: { content: string; type: string; name: string }[],
+    onStreamStatus?: (statusText: string) => void
   ): Promise<UniversalResponseFormat> {
     try {
       const messages: Array<{
@@ -345,9 +334,19 @@ export class AutonomousPlanner {
         });
       }
 
+      requestBody.stream = true;
+      onStreamStatus?.('Menerima respons AI...');
       const response = await this.openai.chat.completions.create(requestBody as any);
-
-      const rawContent = response.choices[0]?.message?.content || '';
+      let rawContent = '';
+      if (this.isAsyncIterable(response)) {
+        for await (const chunk of response as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>) {
+          const delta = chunk.choices?.[0]?.delta?.content || '';
+          if (delta) rawContent += delta;
+          if (rawContent.length % 80 < delta.length) onStreamStatus?.('Menyiapkan jawaban...');
+        }
+      } else {
+        rawContent = response.choices[0]?.message?.content || '';
+      }
       return ActionParser.parseUniversalAgentResponse(rawContent);
     } catch (err: any) {
       const errorMsg = err.message || String(err);
@@ -375,5 +374,9 @@ export class AutonomousPlanner {
       console.error('[AutonomousPlanner] SenseNova Decision Error:', err);
       throw new Error(`SenseNova API Error: ${err.message || String(err)}`);
     }
+  }
+
+  private isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+    return typeof value === 'object' && value !== null && Symbol.asyncIterator in value;
   }
 }

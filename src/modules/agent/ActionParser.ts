@@ -1,5 +1,7 @@
 import { ToolName, UniversalResponseFormat } from '../../core/types/agent';
 import { TOOL_NAMES } from './ToolCatalog';
+import { jsonrepair } from 'jsonrepair';
+import { z } from 'zod';
 
 export interface ActionStepSchema {
   id?: string;
@@ -21,12 +23,30 @@ export interface SenseNovaResponseFormat {
   thought?: string;
   tool_call?: {
     name: ToolName;
-    parameters: Record<string, any>;
+    parameters: Record<string, unknown>;
   } | null;
   reply?: string;
 }
 
 type JsonRecord = Record<string, unknown>;
+
+const toolCallSchema = z.object({
+  name: z.string(),
+  parameters: z.record(z.string(), z.unknown()).optional(),
+}).passthrough();
+
+const responseSchema = z.object({
+  thought: z.unknown().optional(),
+  thought_process: z.record(z.string(), z.unknown()).optional(),
+  plan_step: z.unknown().optional(),
+  plan_status: z.record(z.string(), z.unknown()).optional(),
+  tool_call: toolCallSchema.nullable().optional(),
+  next_step: toolCallSchema.optional(),
+  next_action: toolCallSchema.optional(),
+  reply: z.unknown().optional(),
+  message_to_user: z.unknown().optional(),
+  live_status_message: z.unknown().optional(),
+}).passthrough();
 
 export class ActionParser {
   public static parseUniversalAgentResponse(rawResponse: string): UniversalResponseFormat {
@@ -96,8 +116,10 @@ export class ActionParser {
     for (const candidate of candidates) {
       for (const variant of [candidate, candidate.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t')]) {
         try {
-          const parsed: unknown = JSON.parse(variant);
-          if (this.isRecord(parsed)) return this.unwrapResponse(parsed);
+          const repaired = jsonrepair(variant);
+          const parsed: unknown = JSON.parse(repaired);
+          const validated = responseSchema.safeParse(parsed);
+          if (validated.success) return this.unwrapResponse(validated.data);
         } catch { /* Try the next response shape. */ }
       }
     }
