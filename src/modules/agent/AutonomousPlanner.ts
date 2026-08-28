@@ -10,8 +10,10 @@ import { getNativeToolDefinitions } from './ToolCatalog';
 import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } from 'openai/resources/chat';
 
 const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
-const STREAM_TIMEOUT_MS = 60_000;
-const CASUAL_STREAM_TIMEOUT_MS = 15_000;
+// SenseNova may take over a minute before producing the first SSE chunk.
+// Keep streaming enabled while allowing that provider-side cold start.
+const STREAM_TIMEOUT_MS = 120_000;
+const CASUAL_STREAM_TIMEOUT_MS = 120_000;
 const MAX_STREAM_ATTEMPTS = 2;
 
 interface NativeToolCall { id: string; name: string; arguments: string; }
