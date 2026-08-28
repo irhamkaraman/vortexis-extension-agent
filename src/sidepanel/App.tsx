@@ -105,6 +105,16 @@ export const App: React.FC = () => {
             }
           }
 
+          // A natural-language delta is the answer stream itself. Do not keep
+          // the separate activity placeholder beside it; that was the source
+          // of the duplicated conversational response in the panel.
+          if (stepUpdateMsg.content && !stepUpdateMsg.toolCall) {
+            setIsThinking(false);
+            setIsExecutingTool(false);
+            setActiveToolName('');
+            setActivity((current) => ({ ...current, isActive: false, statusText: 'Menyiapkan jawaban' }));
+          }
+
           setMessages((prev) => {
             const existingIdx = prev.findIndex((m) => m.id === stepUpdateMsg.id);
             if (existingIdx !== -1) {
@@ -131,10 +141,6 @@ export const App: React.FC = () => {
                 completedAt: result ? Date.now() : undefined,
               };
               return { ...current, steps: [...current.steps.filter((item) => item.id !== step.id), step] };
-            }
-            if (stepUpdateMsg.content) {
-              const answer: AgentActivityStep = { id: `answer-${stepUpdateMsg.id}`, kind: 'answer', title: 'Menyiapkan jawaban', summary: 'Respons diperbarui secara streaming.', status: 'active', startedAt: Date.now() };
-              return { ...current, steps: [...current.steps.filter((item) => item.id !== answer.id), answer] };
             }
             return current;
           });
