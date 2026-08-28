@@ -154,6 +154,10 @@ export class AutonomousPlanner {
           id: stepMsgId,
           role: 'assistant',
           content: fullReplyText,
+          toolCall: turnResponse.tool_call ? {
+            name: turnResponse.tool_call.name,
+            parameters: turnResponse.tool_call.parameters || {},
+          } : undefined,
           thinkingContent: finalThought || undefined,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
@@ -161,7 +165,7 @@ export class AutonomousPlanner {
         onStepUpdate(finalStepMsg, {
           isExecutingTool: Boolean(turnResponse.tool_call && !isFinishSignal),
           activeToolName: turnResponse.tool_call && !isFinishSignal ? turnResponse.tool_call.name : undefined,
-          statusText: turnResponse.tool_call && !isFinishSignal ? 'Menyiapkan langkah berikutnya...' : undefined,
+          statusText: turnResponse.tool_call && !isFinishSignal ? `Menjalankan ${turnResponse.tool_call.name}...` : undefined,
           streamingComplete: !turnResponse.tool_call || isFinishSignal,
         });
 
