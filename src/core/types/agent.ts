@@ -184,6 +184,7 @@ export interface ChatMessage {
   id: string;
   role: Role;
   content: string;
+  thinkingContent?: string;
   thoughtProcess?: UniversalThoughtProcess;
   planStatus?: PlanStatus;
   tradeSignal?: TradeDetails;

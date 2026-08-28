@@ -17,7 +17,7 @@ const CASUAL_STREAM_TIMEOUT_MS = 120_000;
 const MAX_STREAM_ATTEMPTS = 2;
 
 interface NativeToolCall { id: string; name: string; arguments: string; }
-interface NativeDecision { content: string; toolCalls: NativeToolCall[]; }
+interface NativeDecision { content: string; toolCalls: NativeToolCall[]; reasoningContent: string; }
 
 const OVERLAY_STATUSES: Record<string, string> = {
   capturing: 'Sedang screenshot — halaman tetap bisa diklik',
@@ -102,11 +102,15 @@ export class AutonomousPlanner {
         }, { isExecutingTool: false, statusText: 'Menganalisis permintaan...' });
 
         let streamedAnswer = '';
+        let streamedThinking = '';
       const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(userGoal, conversationTurns, imageAttachments, shouldStop, (statusText) => {
            onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText, isExecutingTool: false });
          }, (partialText) => {
             streamedAnswer = partialText;
-            onStepUpdate({ id: stepMsgId, role: 'assistant', content: partialText, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { isExecutingTool: false });
+            onStepUpdate({ id: stepMsgId, role: 'assistant', content: partialText, thinkingContent: streamedThinking || undefined, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { isExecutingTool: false });
+          }, (partialThought) => {
+            streamedThinking = partialThought;
+            onStepUpdate({ id: stepMsgId, role: 'assistant', content: streamedAnswer, thinkingContent: partialThought, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { isExecutingTool: false });
           }, reasoningEffort);
 
         // A tool-call turn is an internal activity step, not a user-facing answer.
@@ -319,6 +323,7 @@ export class AutonomousPlanner {
     shouldStop: () => boolean,
     onStreamStatus?: (statusText: string) => void,
     onStreamText?: (partialText: string) => void,
+    onStreamThought?: (thoughtText: string) => void,
     reasoningEffort: 'none' | 'low' | 'medium' | 'high' = 'medium',
   ): Promise<UniversalResponseFormat> {
     const needsTools = this.requestNeedsBrowserTools(userGoal);
@@ -384,7 +389,7 @@ export class AutonomousPlanner {
           this.rejectAfter(requestTimeout, 'Stream AI timeout sebelum menerima respons.'),
         ]);
         const nativeResponse = await Promise.race<NativeDecision>([
-           this.collectSseResponse(response, shouldStop, abortController, onStreamStatus, onStreamText),
+           this.collectSseResponse(response, shouldStop, abortController, onStreamStatus, onStreamText, onStreamThought),
            this.rejectAfter(requestTimeout, 'Stream AI timeout saat membaca delta.'),
         ]);
         if (nativeResponse.toolCalls.length > 0) {
@@ -495,20 +500,29 @@ export class AutonomousPlanner {
     abortController: AbortController,
     onStreamStatus?: (statusText: string) => void,
     onStreamText?: (partialText: string) => void,
+    onStreamThought?: (thoughtText: string) => void,
   ): Promise<NativeDecision> {
     if (!response.body) throw new Error('SenseNova stream body kosong.');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     let content = '';
+    let reasoningContent = '';
     const toolCalls = new Map<number, NativeToolCall>();
     const consume = (payload: string) => {
       if (!payload || payload === '[DONE]') return;
-      let chunk: { choices?: Array<{ delta?: { content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }> };
+      let chunk: { choices?: Array<{ delta?: { content?: string; reasoning_content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }> };
       try { chunk = JSON.parse(payload); } catch { return; }
       const delta = chunk.choices?.[0]?.delta;
       const text = delta?.content || '';
       content += text;
+      // Capture reasoning_content (SenseNova extended thinking)
+      const reasoning = delta?.reasoning_content || '';
+      if (reasoning) {
+        reasoningContent += reasoning;
+        onStreamThought?.(reasoningContent);
+        onStreamStatus?.('Sedang berpikir...');
+      }
       if (text && !content.trimStart().startsWith('{') && !content.includes('```json')) onStreamText?.(content);
       for (const call of delta?.tool_calls || []) {
         const index = call.index || 0;
@@ -530,7 +544,7 @@ export class AutonomousPlanner {
       for (const line of lines) if (line.startsWith('data:')) consume(line.slice(5).trim());
     }
     if (buffer.startsWith('data:')) consume(buffer.slice(5).trim());
-    return { content, toolCalls: [...toolCalls.values()] };
+    return { content, toolCalls: [...toolCalls.values()], reasoningContent };
   }
 
   private requestNeedsBrowserTools(userGoal: string): boolean {
@@ -549,6 +563,7 @@ export class AutonomousPlanner {
       return {
         content: message.content || '',
         toolCalls: (message.tool_calls || []).map((call) => ({ id: call.id || crypto.randomUUID(), name: call.function?.name || '', arguments: call.function?.arguments || '{}' })),
+        reasoningContent: '',
       };
     }
     let content = '';
@@ -577,7 +592,7 @@ export class AutonomousPlanner {
       }
       if (content.length % 80 < delta.length) onStreamStatus?.('Menyiapkan jawaban...');
     }
-    return { content, toolCalls: [...toolCalls.values()] };
+    return { content, toolCalls: [...toolCalls.values()], reasoningContent: '' };
   }
 
   private rejectAfter<T>(milliseconds: number, message: string): Promise<T> {

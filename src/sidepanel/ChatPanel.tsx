@@ -96,7 +96,9 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
             </div>
           </div>
         ) : (
-          messages.map((msg) => <MessageItem key={msg.id} message={msg} />)
+          messages.map((msg, idx) => (
+            <MessageItem key={msg.id} message={msg} isStreaming={isThinking && idx === messages.length - 1 && msg.role === 'assistant'} />
+          ))
         )}
 
         {/* Real-time Thinking & Tool Skeleton Stream Indicator */}

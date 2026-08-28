@@ -1,18 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 import { ChatMessage } from '../../core/types/agent';
 
 interface MessageItemProps {
   message: ChatMessage;
+  isStreaming?: boolean;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }) => {
   const isUser = message.role === 'user';
+
+  // Show thinking collapsible: expanded during streaming, collapsed after
+  const [thinkingOpen, setThinkingOpen] = useState(Boolean(isStreaming));
+  useEffect(() => {
+    // Auto-collapse when streaming finishes
+    if (!isStreaming && message.thinkingContent) {
+      setThinkingOpen(false);
+    }
+  }, [isStreaming, message.thinkingContent]);
+
   // Do not render empty AI message container if it's currently streaming in ThinkingIndicator
-  if (!isUser && !message.content && !message.toolCall && !message.thoughtProcess) {
+  if (!isUser && !message.content && !message.toolCall && !message.thinkingContent) {
     return null;
   }
 
@@ -47,6 +59,24 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
             : 'vortexis-agent-content text-neutral-200'
         }`}
       >
+        {/* Thinking / Reasoning Section (Gemini-style collapsible) */}
+        {!isUser && message.thinkingContent && (
+          <div className="vortexis-thinking-section">
+            <button type="button" className="vortexis-thinking-toggle-btn" onClick={() => setThinkingOpen((v) => !v)}>
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" strokeWidth={1.5} />
+              <span className="vortexis-thinking-toggle-label">{thinkingOpen ? 'Menyembunyikan proses berpikir' : 'Tampilkan proses berpikir'}</span>
+              {thinkingOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+            </button>
+            {thinkingOpen && (
+              <div className="vortexis-thinking-content">
+                {message.thinkingContent.split('\n').filter(Boolean).map((line, i) => (
+                  <p key={i} className="vortexis-thinking-line">{line}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Message Content */}
         {message.content ? (
           <div className="prose prose-invert prose-xs leading-relaxed max-w-none break-words font-sans overflow-wrap-anywhere">
