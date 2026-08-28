@@ -10,6 +10,7 @@ import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } fr
 
 const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
 const STREAM_TIMEOUT_MS = 45_000;
+const FALLBACK_TIMEOUT_MS = 20_000;
 
 const OVERLAY_STATUSES: Record<string, string> = {
   capturing: 'Sedang screenshot — halaman tetap bisa diklik',
@@ -349,21 +350,14 @@ export class AutonomousPlanner {
       requestBody.stream = true;
       onStreamStatus?.('Menerima respons AI...');
       try {
-        const response = await this.openai.chat.completions.create(requestBody as any, { signal: abortController.signal });
-        let rawContent = '';
-        if (this.isAsyncIterable(response)) {
-          for await (const chunk of response as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>) {
-            if (shouldStop()) {
-              abortController.abort();
-              throw new Error('Eksekusi dihentikan oleh pengguna.');
-            }
-            const delta = chunk.choices?.[0]?.delta?.content || '';
-            if (delta) rawContent += delta;
-            if (rawContent.length % 80 < delta.length) onStreamStatus?.('Menyiapkan jawaban...');
-          }
-        } else {
-          rawContent = response.choices[0]?.message?.content || '';
-        }
+        const response = await Promise.race<any>([
+          this.openai.chat.completions.create(requestBody as any, { signal: abortController.signal }),
+          this.rejectAfter(STREAM_TIMEOUT_MS, 'Stream AI timeout sebelum menerima respons.'),
+        ]);
+        const rawContent = await Promise.race<string>([
+          this.collectResponseContent(response, shouldStop, abortController, onStreamStatus),
+          this.rejectAfter(STREAM_TIMEOUT_MS, 'Stream AI timeout saat membaca delta.'),
+        ]);
         return ActionParser.parseUniversalAgentResponse(rawContent);
       } finally {
         clearTimeout(timeoutId);
@@ -374,11 +368,14 @@ export class AutonomousPlanner {
       if (shouldStop()) throw new Error('Eksekusi dihentikan oleh pengguna.');
       if (errorMsg.includes('aborted') || errorMsg.includes('abort') || errorMsg.includes('timeout')) {
         onStreamStatus?.('Mode kompatibilitas aktif...');
-        const fallbackResponse = await this.openai.chat.completions.create({
-          model: this.modelName,
-          messages: chatHistory,
-          temperature: 0.2,
-        } as any);
+        const fallbackResponse = await Promise.race<OpenAI.Chat.Completions.ChatCompletion>([
+          this.openai.chat.completions.create({
+            model: this.modelName,
+            messages: chatHistory,
+            temperature: 0.2,
+          } as any),
+          this.rejectAfter(FALLBACK_TIMEOUT_MS, 'Mode kompatibilitas juga timeout.'),
+        ]);
         const fallbackContent = fallbackResponse.choices[0]?.message?.content || '';
         return ActionParser.parseUniversalAgentResponse(fallbackContent);
       }
@@ -410,5 +407,31 @@ export class AutonomousPlanner {
 
   private isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
     return typeof value === 'object' && value !== null && Symbol.asyncIterator in value;
+  }
+
+  private async collectResponseContent(
+    response: { choices: Array<{ message: { content?: string | null } }> } | AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>,
+    shouldStop: () => boolean,
+    abortController: AbortController,
+    onStreamStatus?: (statusText: string) => void,
+  ): Promise<string> {
+    if (!this.isAsyncIterable(response)) return response.choices[0]?.message?.content || '';
+    let content = '';
+    for await (const chunk of response) {
+      if (shouldStop()) {
+        abortController.abort();
+        throw new Error('Eksekusi dihentikan oleh pengguna.');
+      }
+      const delta = chunk.choices?.[0]?.delta?.content || '';
+      content += delta;
+      if (content.length % 80 < delta.length) onStreamStatus?.('Menyiapkan jawaban...');
+    }
+    return content;
+  }
+
+  private rejectAfter<T>(milliseconds: number, message: string): Promise<T> {
+    return new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(message)), milliseconds);
+    });
   }
 }
