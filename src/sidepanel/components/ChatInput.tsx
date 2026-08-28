@@ -160,9 +160,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <div className="vortexis-prompt-toolbar">
           <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isBusy} className="vortexis-prompt-tool" title="Lampirkan file">
             <Paperclip className="w-4 h-4" strokeWidth={1.6} />
-            <span>Lampirkan</span>
           </button>
-          <span className="vortexis-prompt-hint">Enter untuk mengirim · Shift + Enter untuk baris baru</span>
           {isBusy ? (
             <button type="button" onClick={onStop} className="vortexis-prompt-submit is-stop" title="Hentikan eksekusi"><Square className="w-3.5 h-3.5 fill-current" /><span>STOP</span></button>
           ) : (
