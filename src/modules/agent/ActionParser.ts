@@ -98,11 +98,27 @@ export class ActionParser {
         .trim();
 
       const reply = this.extractReplyFromBrokenJson(rawResponse);
+      const finalReply = reply || replyText;
+
+      // If no tool was extracted yet, check rawText/thought for mentions of tool execution
+      if (!tool_call) {
+        for (const knownTool of TOOL_NAMES) {
+          const mentionRegex = new RegExp(`\\b(?:use|panggil|jalankan|execute|using)\\s+(?:the\\s+)?(?:tool\\s+)?['"\`]??${knownTool}['"\`]??\\b`, 'i');
+          if (mentionRegex.test(rawText)) {
+            tool_call = {
+              name: knownTool,
+              parameters: {},
+            };
+            break;
+          }
+        }
+      }
+
       return {
         thought: 'Direct response',
         plan_step: 'Conversational response',
         tool_call: tool_call as any,
-        reply: reply || replyText,
+        reply: (tool_call && finalReply === 'Siap membantu.') ? '' : finalReply,
       };
     }
   }

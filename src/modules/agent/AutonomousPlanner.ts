@@ -349,8 +349,8 @@ export class AutonomousPlanner {
     onStreamThought?: (thoughtText: string) => void,
     reasoningEffort: 'none' | 'low' | 'medium' | 'high' = 'medium',
   ): Promise<UniversalResponseFormat> {
-    const needsTools = this.requestNeedsBrowserTools(userGoal);
-    const requestTimeout = needsTools ? STREAM_TIMEOUT_MS : CASUAL_STREAM_TIMEOUT_MS;
+    // Always provide tools to SenseNova
+    const requestTimeout = STREAM_TIMEOUT_MS;
     try {
       const messages: Array<any> = [
         { role: 'system', content: UNIVERSAL_AGENT_SYSTEM_PROMPT },
@@ -363,11 +363,9 @@ export class AutonomousPlanner {
         temperature: 0.2,
         max_tokens: 4096,
         reasoning_effort: reasoningEffort,
+        tools: getNativeToolDefinitions(),
+        tool_choice: 'auto',
       };
-      if (needsTools) {
-        requestBody.tools = getNativeToolDefinitions();
-        requestBody.tool_choice = 'auto';
-      }
 
       if (imageAttachments.length > 0) {
         const imageContent: Array<ChatCompletionContentPartText | ChatCompletionContentPartImage> = [
@@ -428,7 +426,18 @@ export class AutonomousPlanner {
             nativeToolCallId: toolCall.id,
           };
         }
-        return ActionParser.parseUniversalAgentResponse(nativeResponse.content);
+        const parsedResponse = ActionParser.parseUniversalAgentResponse(nativeResponse.content);
+        if (!parsedResponse.tool_call && nativeResponse.reasoningContent) {
+          // If the model intended to use a tool in its reasoning but didn't output native tool_call, try resolving from reasoning
+          const fallbackWithReasoning = ActionParser.parseUniversalAgentResponse(`${nativeResponse.reasoningContent}\n${nativeResponse.content}`);
+          if (fallbackWithReasoning.tool_call) {
+            return {
+              ...fallbackWithReasoning,
+              reply: parsedResponse.reply,
+            };
+          }
+        }
+        return parsedResponse;
       } finally {
         clearTimeout(timeoutId);
         clearInterval(stopPollId);
