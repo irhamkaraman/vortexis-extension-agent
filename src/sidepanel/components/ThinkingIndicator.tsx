@@ -1,14 +1,6 @@
 import React from 'react';
-import { Loader2, Terminal } from 'lucide-react';
-
-const THINKING_MESSAGES = [
-  'Menganalisis permintaan kamu...',
-  'Melihat isi halaman yang aktif...',
-  'Memindai elemen interaktif di halaman...',
-  'Mengumpulkan konteks dari halaman...',
-  'Memutuskan langkah selanjutnya...',
-  'Bertindak sesuai instruksi kamu...',
-];
+import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 
 const TOOL_STATUS_MESSAGES: Record<string, string> = {
   capture_screen: 'Mengambil screenshot halaman...',
@@ -51,46 +43,22 @@ interface ThinkingIndicatorProps {
 export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   statusText,
   thought,
-  isExecutingTool,
+  isExecutingTool: _isExecutingTool,
   activeToolName,
 }) => {
-  const derivedStatus = statusText || (activeToolName ? TOOL_STATUS_MESSAGES[activeToolName] || `Menjalankan ${activeToolName}...` : THINKING_MESSAGES[Math.floor(Math.random() * THINKING_MESSAGES.length)]);
+  const [thoughtOpen, setThoughtOpen] = useState(false);
+  const derivedStatus = statusText || (activeToolName ? TOOL_STATUS_MESSAGES[activeToolName] || `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...');
 
   return (
-    <div className="flex flex-col my-2 items-start animate-in fade-in duration-200 w-full max-w-full">
-      <div className="flex items-center gap-1.5 mb-1 font-mono text-[9px] text-neutral-500">
-        <span className="uppercase font-semibold text-neutral-400">VORTEXIS</span>
-        <span>•</span>
-        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-          <Loader2 className="w-2.5 h-2.5 animate-spin text-emerald-400" strokeWidth={2} />
-          <span>{isExecutingTool ? `SEDANG BERTINDAK` : 'BERPIKIR'}</span>
-        </span>
+    <div className="vortexis-live-activity my-2 w-full max-w-full animate-in fade-in duration-200">
+      <div className="vortexis-live-status">
+        <Loader2 className="w-3.5 h-3.5 text-sky-400 animate-spin shrink-0" strokeWidth={2} />
+        <span className="truncate">{derivedStatus}</span>
+        {thought && <button type="button" onClick={() => setThoughtOpen((open) => !open)} className="ml-auto text-neutral-500 hover:text-neutral-200" aria-label="Tampilkan proses berpikir">
+          {thoughtOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        </button>}
       </div>
-
-      <div className="w-full rounded-lg p-3 text-xs bg-gradient-to-br from-neutral-950 to-neutral-900 border border-neutral-800/60 text-neutral-200 space-y-2 overflow-hidden">
-        <div className="flex items-center gap-2.5 text-neutral-300 font-sans text-[11px]">
-          <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" strokeWidth={2} />
-          <span className="font-medium truncate">{derivedStatus}</span>
-        </div>
-
-        {isExecutingTool && (
-          <div className="space-y-1.5 pt-1">
-            <div className="h-1.5 bg-neutral-800/80 rounded animate-pulse w-3/4"></div>
-            <div className="h-1.5 bg-neutral-800/60 rounded animate-pulse w-full" style={{ animationDelay: '0.15s' }}></div>
-            <div className="h-1.5 bg-neutral-800/40 rounded animate-pulse w-1/2" style={{ animationDelay: '0.3s' }}></div>
-          </div>
-        )}
-
-        {thought && (
-          <div className="p-2.5 bg-neutral-950/80 rounded-lg border border-neutral-800/60 font-mono text-[10px] text-neutral-400 space-y-1 overflow-hidden">
-            <div className="flex items-center gap-1 text-neutral-500 font-bold">
-              <Terminal className="w-3 h-3 text-emerald-400 shrink-0" strokeWidth={1.5} />
-              <span>REASONING:</span>
-            </div>
-            <p className="text-neutral-300 leading-relaxed whitespace-pre-wrap break-words">{thought}</p>
-          </div>
-        )}
-      </div>
+      {thoughtOpen && thought && thought !== 'Direct response' && <div className="vortexis-live-thought">{thought}</div>}
     </div>
   );
 };

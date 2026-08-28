@@ -128,3 +128,38 @@
   border-color: #657286;
   box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.14), inset 0 1px rgba(255, 255, 255, 0.04);
 }
+
+.vortexis-live-activity,
+.vortexis-agent-step {
+  color: #9ca7b5;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.vortexis-live-status,
+.vortexis-step-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  color: #aeb8c5;
+  background: rgba(17, 20, 25, 0.55);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.vortexis-step-toggle:hover,
+.vortexis-live-status:hover { border-color: rgba(148, 163, 184, 0.42); color: #e5e7eb; }
+.vortexis-live-thought,
+.vortexis-step-details {
+  margin: 4px 0 0 20px;
+  padding: 7px 9px;
+  color: #818b99;
+  background: rgba(10, 12, 15, 0.46);
+  border-left: 1px solid #465160;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.vortexis-step-details pre { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; color: #9ca7b5; }

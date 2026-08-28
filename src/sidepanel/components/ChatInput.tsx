@@ -1,18 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Paperclip, Send, Square } from 'lucide-react';
-import { FileAttachment, ToolName } from '../../core/types/agent';
+import { FileAttachment } from '../../core/types/agent';
 import { FileUploadManager } from './FileUploadManager';
 
 interface ChatInputProps {
   onSendMessage: (text: string, attachments: FileAttachment[]) => void;
-  onTriggerQuickTool: (toolName: ToolName) => void;
   onStop: () => void;
   isBusy: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
-  onTriggerQuickTool,
   onStop,
   isBusy,
 }) => {

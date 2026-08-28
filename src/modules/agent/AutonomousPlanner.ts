@@ -1,9 +1,10 @@
 import OpenAI from 'openai';
 import { BackgroundToolExecutor } from '../../background';
-import { ChatMessage, UniversalResponseFormat } from '../../core/types/agent';
+import { ChatMessage, SuperAgentToolParams, UniversalResponseFormat } from '../../core/types/agent';
 import { ActionParser } from './ActionParser';
 import { SelfHealingDriver } from './SelfHealingDriver';
 import { ToolRegistry } from './ToolRegistry';
+import { formatToolCatalogForPrompt } from './ToolCatalog';
 import { UNIVERSAL_AGENT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
 
 import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } from 'openai/resources/chat';
@@ -59,7 +60,7 @@ export class AutonomousPlanner {
     if (isGreeting || asksCapabilities) {
       const reply = isGreeting
         ? 'Hai. Aku VORTEXIS, asisten otomatis di browser kamu. Aku bisa membantu membaca halaman, mengisi form, mengklik elemen, mengambil screenshot, dan mengolah data.'
-        : 'Aku VORTEXIS. Kemampuanku mencakup:\n\n• Membaca konteks halaman dengan RAG\n• Screenshot dan analisis visual\n• Scan elemen interaktif\n• Klik dan mengetik pada form\n• Scroll dan drag and drop\n• Shortcut keyboard\n• Ekstraksi data\n• Konfirmasi aksi berisiko';
+        : `Aku VORTEXIS. Aku punya ${formatToolCatalogForPrompt().split('\n').length} kemampuan browser yang bisa kupilih sesuai kebutuhan:\n\n${formatToolCatalogForPrompt()}`;
       onStepUpdate({
         id: `msg-local-${Date.now()}`,
         role: 'assistant',
@@ -112,7 +113,10 @@ export class AutonomousPlanner {
 
         const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments);
 
-        const fullReplyText = turnResponse.reply || 'Memproses instruksi...';
+        // A tool-call turn is an internal activity step, not a user-facing answer.
+        // Only the no-tool turn becomes the final response bubble.
+        const isFinishSignal = turnResponse.tool_call?.name === 'finish_task';
+        const fullReplyText = turnResponse.tool_call && !isFinishSignal ? '' : (turnResponse.reply || 'Selesai memproses permintaan.');
         let currentText = '';
 
         for (let i = 0; i < fullReplyText.length; i += 4) {
@@ -127,7 +131,7 @@ export class AutonomousPlanner {
               thought: turnResponse.thought,
               current_observation: turnResponse.thought,
             },
-            toolCall: turnResponse.tool_call
+            toolCall: turnResponse.tool_call && !isFinishSignal
               ? { name: turnResponse.tool_call.name, parameters: turnResponse.tool_call.parameters }
               : undefined,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -144,7 +148,7 @@ export class AutonomousPlanner {
             thought: turnResponse.thought,
             current_observation: turnResponse.thought,
           },
-          toolCall: turnResponse.tool_call
+          toolCall: turnResponse.tool_call && !isFinishSignal
             ? { name: turnResponse.tool_call.name, parameters: turnResponse.tool_call.parameters }
             : undefined,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -161,7 +165,7 @@ export class AutonomousPlanner {
 
         onStepUpdate(finalStepMsg, { isExecutingTool: true, activeToolName: toolName });
 
-        if (toolName === 'request_confirmation' || toolName === 'request_user_confirmation') {
+        if (toolName === 'request_confirmation' || toolName === 'request_user_confirmation' || toolName === 'request_trade_confirmation') {
           const details = params.details || params.warning_message || 'Konfirmasi aksi berisiko tinggi diperlukan.';
           await new Promise<void>((resolve, reject) => {
             if (onRequireApproval) {
@@ -267,7 +271,7 @@ export class AutonomousPlanner {
       }
   }
 
-  private getOverlayStatusKey(toolName: string, params: Record<string, any>): string {
+  private getOverlayStatusKey(toolName: string, _params: SuperAgentToolParams): string {
     if (toolName.startsWith('capture_')) return 'capturing';
     if (toolName.startsWith('scan_')) return 'scanning';
     if (toolName === 'click_coordinate' || toolName === 'double_click_coordinate') return 'clicking';

@@ -1,8 +1,8 @@
 import { BackgroundToolExecutor } from '../../background';
 import { SuperAgentToolParams, ToolName, ToolResult } from '../../core/types/agent';
 import { InteractiveElementInfo } from '../../core/types/messages';
-import { PatternCacheStore } from '../cache/PatternCacheStore';
 import { BrowserRAGStore } from '../rag/BrowserRAGStore';
+import { TOOL_CATALOG } from './ToolCatalog';
 
 export class ToolRegistry {
   private toolExecutor: BackgroundToolExecutor;
@@ -23,17 +23,7 @@ export class ToolRegistry {
         success: true,
         data: {
           title: 'Kemampuan VORTEXIS',
-          tools: [
-            { name: 'get_page_context', description: 'Membaca teks dan konteks halaman, lalu menyimpannya ke RAG.' },
-            { name: 'capture_screen', description: 'Mengambil screenshot tab aktif untuk analisis visual.' },
-            { name: 'scan_interactive_tree', description: 'Menemukan tombol, link, input, dan koordinatnya.' },
-            { name: 'click_coordinate', description: 'Mengklik elemen berdasarkan koordinat atau selector.' },
-            { name: 'type_text', description: 'Mengisi input atau form dengan teks.' },
-            { name: 'scroll_page', description: 'Menggulir halaman ke atas atau ke bawah.' },
-            { name: 'drag_and_drop', description: 'Menggeser elemen dari satu koordinat ke koordinat lain.' },
-            { name: 'trigger_hotkey', description: 'Mengirim shortcut keyboard ke halaman.' },
-            { name: 'request_confirmation', description: 'Meminta persetujuan sebelum aksi berisiko.' },
-          ],
+          tools: TOOL_CATALOG.map(({ name, label, description, whenToUse, category }) => ({ name, label, description, whenToUse, category })),
         },
       };
     }
@@ -41,7 +31,7 @@ export class ToolRegistry {
     const domain = await this.toolExecutor.getActiveTabDomain();
 
     // Human Safety Gate Confirmation
-    if (name === 'request_confirmation' || name === 'request_user_confirmation') {
+    if (name === 'request_confirmation' || name === 'request_user_confirmation' || name === 'request_trade_confirmation') {
       return {
         success: false,
         requiresApproval: true,
@@ -75,7 +65,7 @@ export class ToolRegistry {
             text: pageData.cleanText,
           });
 
-          let ragMatches: any[] = [];
+          let ragMatches: Array<{ chunk: { text: string } }> = [];
           if (parameters.query) {
             ragMatches = await this.ragStore.query(parameters.query, 3);
           }
@@ -167,11 +157,28 @@ export class ToolRegistry {
           return { success: true, data: 'Tugas selesai.' };
         }
 
+        case 'wait_for_condition': {
+          const waitMs = Math.min(Math.max(parameters.wait_ms || 800, 100), 5000);
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          return { success: true, data: { waitedMs: waitMs, message: 'Kondisi halaman ditunggu.' } };
+        }
+
+        case 'inspect_canvas_layers': {
+          const pageData = await this.toolExecutor.extractStructuredData();
+          return { success: true, data: { title: pageData.title, url: pageData.url, message: 'Canvas/SVG inspection tersedia melalui konteks halaman.', text: pageData.cleanText.substring(0, 1200) } };
+        }
+
+        case 'save_action_macro': {
+          const macro = { id: `macro-${Date.now()}`, domain, goalPattern: parameters.goalPattern || '', actions: parameters.actionSequence || [], createdAt: new Date().toISOString() };
+          await chrome.storage.local.set({ [macro.id]: macro });
+          return { success: true, data: macro };
+        }
+
         default:
           return { success: false, error: `Tool tidak dikenal: ${name}` };
       }
-    } catch (err: any) {
-      return { success: false, error: err.message || String(err) };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 }

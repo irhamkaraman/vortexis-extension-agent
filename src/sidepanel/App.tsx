@@ -92,11 +92,13 @@ export const App: React.FC = () => {
             setIsExecutingTool(exec);
             setActiveToolName(extraState.activeToolName || '');
 
-            if (exec) {
+            if (exec || !extraState.streamingComplete) {
               setIsThinking(true);
+            } else {
+              // A completed no-tool response is the final answer. Do not leave
+              // a live activity indicator underneath that answer.
+              setIsThinking(false);
             }
-            // `streamingComplete` only means this response chunk ended. The
-            // agent may still be executing tools, so request state stays busy.
           }
 
           setMessages((prev) => {
@@ -240,7 +242,6 @@ export const App: React.FC = () => {
       />
       <ChatInput
         onSendMessage={handleSendMessage}
-        onTriggerQuickTool={handleTriggerQuickTool}
         onStop={handleStop}
         isBusy={isBusy}
       />

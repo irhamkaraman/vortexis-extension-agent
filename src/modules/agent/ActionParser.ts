@@ -1,4 +1,5 @@
 import { ToolName, UniversalResponseFormat } from '../../core/types/agent';
+import { TOOL_NAMES } from './ToolCatalog';
 
 export interface ActionStepSchema {
   id?: string;
@@ -130,40 +131,8 @@ export class ActionParser {
 
     const toolObj = obj.tool_call || obj.next_step || obj.next_action;
     if (toolObj && (toolObj.name || toolObj.tool_name)) {
-      const validTools = new Set([
-        'list_available_tools',
-        'capture_screen',
-        'get_page_context',
-        'scan_dom_elements',
-        'click_coordinate',
-        'type_text',
-        'scroll_page',
-        'drag_and_drop',
-        'trigger_hotkey',
-        'request_confirmation',
-        'scan_interactive_tree',
-        'type_with_delay',
-        'scroll_and_find',
-        'wait_for_condition',
-        'capture_and_inspect_vision',
-        'extract_structured_data',
-        'drag_and_drop_element',
-        'trigger_keyboard_shortcut',
-        'double_click_coordinate',
-        'inspect_canvas_layers',
-        'request_user_confirmation',
-        'save_action_macro',
-        'switch_timeframe',
-        'capture_chart_vision',
-        'draw_on_chart',
-        'fill_order_parameters',
-        'request_trade_confirmation',
-        'execute_confirmed_order',
-        'finish_task',
-      ]);
-
       const rawToolName = String(toolObj.name || toolObj.tool_name);
-      if (validTools.has(rawToolName)) {
+      if (TOOL_NAMES.has(rawToolName as ToolName)) {
         tool_call = {
           name: rawToolName as ToolName,
           parameters: toolObj.parameters || toolObj.params || {},

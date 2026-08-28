@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { CheckCircle2, ChevronDown, ChevronRight, Loader2, XCircle } from 'lucide-react';
+import { useState } from 'react';
 import { ChatMessage } from '../../core/types/agent';
 import { StealthLogCard } from './StealthLogCard';
 
@@ -10,10 +12,37 @@ interface MessageItemProps {
 
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === 'user';
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Do not render empty AI message container if it's currently streaming in ThinkingIndicator
   if (!isUser && !message.content && !message.toolCall && !message.thoughtProcess) {
     return null;
+  }
+
+  if (!isUser && message.toolCall) {
+    const result = message.toolResult;
+    const completed = Boolean(result);
+    const succeeded = result?.success;
+    const thought = message.thoughtProcess?.thought || message.thoughtProcess?.current_observation;
+
+    return (
+      <div className="vortexis-agent-step my-1.5 w-full max-w-full">
+        <button type="button" onClick={() => setDetailsOpen((open) => !open)} className="vortexis-step-toggle">
+          <span className="flex items-center gap-2 min-w-0">
+            {completed ? (succeeded ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-red-400" />) : <Loader2 className="w-3.5 h-3.5 text-sky-400 animate-spin" />}
+            <span className="truncate">{message.toolCall.name.replaceAll('_', ' ')}</span>
+          </span>
+          {detailsOpen ? <ChevronDown className="w-3.5 h-3.5 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
+        </button>
+        {detailsOpen && (
+          <div className="vortexis-step-details">
+            {thought && thought !== 'Direct response' && <p>{thought}</p>}
+            {result?.error && <p className="text-red-400">{result.error}</p>}
+            {result?.data && <pre>{typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2)}</pre>}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
