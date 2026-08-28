@@ -12,13 +12,12 @@ import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } fr
 const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
 // SenseNova may take over a minute before producing the first SSE chunk.
 // Keep streaming enabled while allowing that provider-side cold start.
-const STREAM_TIMEOUT_MS = 120_000;
-const CASUAL_STREAM_TIMEOUT_MS = 120_000;
-const MAX_STREAM_ATTEMPTS = 2;
+const STREAM_TIMEOUT_MS = 45_000;
+const CASUAL_STREAM_TIMEOUT_MS = 30_000;
+const MAX_STREAM_ATTEMPTS = 1;
 // Limit conversation history to avoid context overflow on multi-turn calls.
-// SenseNova docs: "Multi-turn significantly increases prompt_tokens. For long histories, summarize or truncate."
-const MAX_HISTORY_MESSAGES = 20;
-const MAX_TOOL_RESULT_CHARS = 2000;
+const MAX_HISTORY_MESSAGES = 10;
+const MAX_TOOL_RESULT_CHARS = 1000;
 
 interface NativeToolCall { id: string; name: string; arguments: string; }
 interface NativeDecision { content: string; toolCalls: NativeToolCall[]; reasoningContent: string; }
@@ -282,10 +281,18 @@ export class AutonomousPlanner {
             function: { name: toolName, arguments: JSON.stringify(params) },
           }],
         } as any);
+        // Keep conversation history compact during multi-turn loops to avoid API latency spikes
+        if (conversationTurns.length > 8) {
+          const systemPrompts = conversationTurns.filter((t) => t.role === 'system');
+          const recentTurns = conversationTurns.slice(-6);
+          conversationTurns.length = 0;
+          conversationTurns.push(...systemPrompts, ...recentTurns);
+        }
+
         // Truncate large tool results (screenshots, page context) to prevent context overflow
-        let toolResultContent = JSON.stringify(toolRes.data || toolRes.error || { success: toolRes.success });
-        if (toolResultContent.length > MAX_TOOL_RESULT_CHARS) {
-          toolResultContent = toolResultContent.substring(0, MAX_TOOL_RESULT_CHARS) + '... [truncated]';
+        let toolResultContent = typeof toolRes.data === 'string' ? toolRes.data : JSON.stringify(toolRes.data || toolRes.error || { success: toolRes.success });
+        if (toolResultContent.length > 1000) {
+          toolResultContent = toolResultContent.substring(0, 1000) + '... [ringkasan]';
         }
         conversationTurns.push({
           role: 'tool',
