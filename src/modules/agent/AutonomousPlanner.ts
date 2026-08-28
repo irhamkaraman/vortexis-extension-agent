@@ -4,7 +4,6 @@ import { ChatMessage, SuperAgentToolParams, UniversalResponseFormat } from '../.
 import { ActionParser } from './ActionParser';
 import { SelfHealingDriver } from './SelfHealingDriver';
 import { ToolRegistry } from './ToolRegistry';
-import { formatToolCatalogForPrompt } from './ToolCatalog';
 import { UNIVERSAL_AGENT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
 
 import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } from 'openai/resources/chat';
@@ -51,25 +50,6 @@ export class AutonomousPlanner {
     onRequireApproval?: (actionDesc: string, onApprove: () => void, onReject: () => void) => void,
     maxIterations: number = 12
   ): Promise<void> {
-    const normalizedGoal = userGoal.trim().toLowerCase();
-    const isGreeting = /^(hai|halo|hello|hey|hi|pagi|siang|sore|malam)(\s+vortexis)?[!.?\s]*$/i.test(normalizedGoal);
-    const asksCapabilities = /(siapa kamu|kamu siapa|apa yang bisa|kemampuan|tools?\b|fitur apa)/i.test(normalizedGoal);
-
-    // Keep trivial conversational turns off the model/tool loop. This removes
-    // unnecessary latency and guarantees that casual chat never touches a tab.
-    if (isGreeting || asksCapabilities) {
-      const reply = isGreeting
-        ? 'Hai. Aku VORTEXIS, asisten otomatis di browser kamu. Aku bisa membantu membaca halaman, mengisi form, mengklik elemen, mengambil screenshot, dan mengolah data.'
-        : `Aku VORTEXIS. Aku punya ${formatToolCatalogForPrompt().split('\n').length} kemampuan browser yang bisa kupilih sesuai kebutuhan:\n\n${formatToolCatalogForPrompt()}`;
-      onStepUpdate({
-        id: `msg-local-${Date.now()}`,
-        role: 'assistant',
-        content: reply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }, { isExecutingTool: false, streamingComplete: true });
-      return;
-    }
-
     const imageAttachments = historyMessages
       .filter((m) => m.attachments && m.attachments.length > 0)
       .flatMap((m) => m.attachments!.filter((a) => a.isImage))
