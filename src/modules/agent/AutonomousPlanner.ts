@@ -452,7 +452,7 @@ export class AutonomousPlanner {
   private isCasualConversation(userGoal: string): boolean {
     const text = userGoal.trim().toLowerCase();
     if (/(baca|rangkum|analisis|ambil|cari|klik|isi|ketik|scroll|screenshot|situs|halaman|website|form|chart|grafik|data)/i.test(text)) return false;
-    return /^(hai|halo|hi|hey|pagi|siang|sore|malam|apa kabar|kamu siapa|siapa kamu|kenalkan diri)/i.test(text);
+    return /^(hai|halo|hi|hey|pagi|siang|sore|malam|apa kabar|kamu siapa|siapa kamu|nama kamu siapa|siapa nama kamu|nama mu siapa|siapa nama mu|kenalkan diri)/i.test(text);
   }
 
   private async collectResponseContent(
