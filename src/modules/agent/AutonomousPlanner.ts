@@ -11,9 +11,7 @@ import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } fr
 
 const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
 const STREAM_TIMEOUT_MS = 60_000;
-const FALLBACK_TIMEOUT_MS = 30_000;
 const CASUAL_STREAM_TIMEOUT_MS = 15_000;
-const CASUAL_FALLBACK_TIMEOUT_MS = 15_000;
 
 interface NativeToolCall { id: string; name: string; arguments: string; }
 interface NativeDecision { content: string; toolCalls: NativeToolCall[]; }
@@ -320,7 +318,6 @@ export class AutonomousPlanner {
   ): Promise<UniversalResponseFormat> {
     const needsTools = this.requestNeedsBrowserTools(userGoal);
     const requestTimeout = needsTools ? STREAM_TIMEOUT_MS : CASUAL_STREAM_TIMEOUT_MS;
-    const fallbackTimeout = needsTools ? FALLBACK_TIMEOUT_MS : CASUAL_FALLBACK_TIMEOUT_MS;
     try {
       const messages: Array<any> = [
         { role: 'system', content: UNIVERSAL_AGENT_SYSTEM_PROMPT },
@@ -406,17 +403,8 @@ export class AutonomousPlanner {
       const errorMsg = err.message || String(err);
       if (shouldStop()) throw new Error('Eksekusi dihentikan oleh pengguna.');
       if (errorMsg.includes('aborted') || errorMsg.includes('abort') || errorMsg.includes('timeout')) {
-        onStreamStatus?.('Mode kompatibilitas aktif...');
-        const fallbackResponse = await Promise.race<OpenAI.Chat.Completions.ChatCompletion>([
-          this.openai.chat.completions.create({
-            model: this.modelName,
-            messages: chatHistory as any,
-            temperature: 0.2,
-          } as any),
-           this.rejectAfter(fallbackTimeout, 'Mode kompatibilitas juga timeout.'),
-        ]);
-        const fallbackContent = fallbackResponse.choices[0]?.message?.content || '';
-        return ActionParser.parseUniversalAgentResponse(fallbackContent);
+        onStreamStatus?.('SenseNova tidak merespons.');
+        throw new Error(`SenseNova tidak merespons dalam ${Math.round(requestTimeout / 1000)} detik. Periksa koneksi internet, status endpoint, atau API key.`);
       }
       if (errorMsg.includes('image') || errorMsg.includes('vision') || errorMsg.includes('multimodal')) {
         console.error('[AutonomousPlanner] Vision not supported by model:', this.modelName);
