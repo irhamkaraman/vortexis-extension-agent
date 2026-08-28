@@ -101,7 +101,7 @@ export class ActionParser {
       return {
         thought: 'Direct response',
         plan_step: 'Conversational response',
-        tool_call,
+        tool_call: tool_call as any,
         reply: reply || replyText,
       };
     }
