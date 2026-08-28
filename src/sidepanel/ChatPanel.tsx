@@ -60,7 +60,6 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
     <div className="flex-1 flex flex-col overflow-hidden bg-black text-neutral-200 w-full max-w-full">
       {/* Minimal Header Bar */}
       <MinimalHeader
-        isThinking={isThinking}
         onClearChat={onClearChat}
         onEmergencyStop={onEmergencyStop}
         onOpenPermissions={() => setShowPermissionModal(true)}
@@ -82,16 +81,19 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
       )}
 
       {/* Messages Stream Timeline */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 scrollbar-thin scrollbar-thumb-neutral-800 w-full max-w-full overflow-x-hidden">
+      <div className="vortexis-message-stream flex-1 overflow-y-auto px-3 py-3 space-y-2 w-full max-w-full overflow-x-hidden">
         {messages.length === 0 && !isThinking ? (
-          <div className="h-full flex flex-col items-center justify-center text-center text-neutral-500 p-6 space-y-3 font-mono">
-            <div className="w-10 h-10 rounded border border-neutral-800 bg-neutral-950 flex items-center justify-center text-neutral-400">
+          <div className="h-full flex flex-col items-center justify-center text-center text-neutral-500 p-6 space-y-4 font-mono">
+            <div className="w-12 h-12 rounded-xl border border-neutral-800 bg-neutral-950 flex items-center justify-center text-neutral-400 shadow-lg shadow-emerald-500/5">
               <Terminal className="w-5 h-5" strokeWidth={1.5} />
             </div>
             <div>
-              <h3 className="font-bold text-neutral-200 text-xs tracking-wider uppercase">VORTEXIS COPILOT</h3>
-              <p className="text-[11px] text-neutral-500 mt-1 max-w-xs leading-relaxed font-sans">
-                Autonomous In-Browser AI Copilot & Universal Action Agent. Seret file atau beri instruksi untuk bantuan riset, otomasi, maupun analisis.
+              <h3 className="font-bold text-neutral-200 text-xs tracking-wider uppercase mb-1">VORTEXIS COPILOT</h3>
+              <p className="text-[11px] text-neutral-400 mt-1 max-w-xs leading-relaxed font-sans">
+                Hai! Aku siap membantu. Mau otomasi browsing, isi form, analisis chart, atau cari data?
+              </p>
+              <p className="text-[10px] text-neutral-600 mt-2 max-w-xs leading-relaxed font-sans">
+                Cukup ketik instruksi atau seret file ke sini — aku akan melakukan yang terbaik.
               </p>
             </div>
           </div>
@@ -102,7 +104,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
         {/* Real-time Thinking & Tool Skeleton Stream Indicator */}
         {isThinking && (
           <ThinkingIndicator
-            statusText={isExecutingTool ? `Menjalankan tool ${activeToolName}...` : 'Menganalisis instruksi dan memindai halaman...'}
+            statusText={isExecutingTool ? `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...'}
             thought={latestThought}
             isExecutingTool={isExecutingTool}
             activeToolName={activeToolName}

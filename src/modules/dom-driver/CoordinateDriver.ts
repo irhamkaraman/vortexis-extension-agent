@@ -88,34 +88,95 @@ export class CoordinateDriver {
     return interactiveList;
   }
 
-  public static clickCoordinate(x: number, y: number, selector?: string): { success: boolean; result?: string; error?: string } {
+  public static clickCoordinate(x: number, y: number, selector?: string, snapRadiusPx: number = 120): { success: boolean; result?: string; error?: string } {
     try {
       let targetEl: Element | null = null;
-      if (selector) targetEl = document.querySelector(selector);
-      if (!targetEl) targetEl = document.elementFromPoint(x, y);
+      let fallbackUsed = false;
+      let clickX = x;
+      let clickY = y;
+
+      if (selector) {
+        targetEl = document.querySelector(selector);
+      } else {
+        targetEl = document.elementFromPoint(x, y);
+      }
 
       if (!targetEl) {
-        return { success: false, error: `Element not found at (x: ${x}, y: ${y})` };
+        targetEl = this.findNearestInteractiveElement(x, y, snapRadiusPx);
+        if (targetEl) {
+          const el = targetEl as HTMLElement;
+          const r = el.getBoundingClientRect();
+          clickX = r.left + r.width / 2;
+          clickY = r.top + r.height / 2;
+          fallbackUsed = true;
+        }
+      }
+
+      if (!targetEl) {
+        return { success: false, error: `Element not found at (x: ${x}, y: ${y}). Nearest interactive element also not found within ${snapRadiusPx}px.` };
       }
 
       const htmlEl = targetEl as HTMLElement;
-      htmlEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      htmlEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+      new Promise((r) => setTimeout(r, 200));
 
-      // Neon Glow Pin Feedback
-      this.showClickGlow(x, y);
+      this.showClickGlow(clickX, clickY);
 
       htmlEl.focus();
       htmlEl.click();
 
       ['mousedown', 'mouseup', 'click'].forEach((evtName) => {
-        const evt = new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y });
+        const evt = new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY });
         htmlEl.dispatchEvent(evt);
       });
 
-      return { success: true, result: `Clicked element at (x: ${x}, y: ${y})` };
+      const info = this.describeElement(htmlEl);
+      return {
+        success: true,
+        result: fallbackUsed
+          ? `Snapped: clicked "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)}). Original target (${x}, ${y}) had no element.`
+          : `Clicked "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)})`,
+      };
     } catch (err: any) {
       return { success: false, error: err.message || String(err) };
     }
+  }
+
+  private static findNearestInteractiveElement(x: number, y: number, radiusPx: number): HTMLElement | null {
+    const querySelector = `
+      a[href], button, input, textarea, select,
+      [role="button"], [role="link"], [role="checkbox"], [role="textbox"],
+      [role="tab"], [role="menuitem"], [role="option"],
+      [tabindex]:not([tabindex="-1"])
+    `.trim();
+
+    const elements = Array.from(document.querySelectorAll(querySelector));
+    let nearest: HTMLElement | null = null;
+    let nearestDist = Infinity;
+
+    for (const el of elements) {
+      const htmlEl = el as HTMLElement;
+      const rect = htmlEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dist = Math.hypot(cx - x, cy - y);
+
+      if (dist <= radiusPx && dist < nearestDist) {
+        nearest = htmlEl;
+        nearestDist = dist;
+      }
+    }
+
+    return nearest;
+  }
+
+  private static describeElement(el: HTMLElement): { tag: string; text: string; id: string; role: string } {
+    return {
+      tag: el.tagName.toLowerCase(),
+      text: (el.innerText || el.getAttribute('aria-label') || el.getAttribute('value') || el.getAttribute('placeholder') || '').trim().substring(0, 80),
+      id: el.id || '',
+      role: el.getAttribute('role') || '',
+    };
   }
 
   public static typeWithDelay(

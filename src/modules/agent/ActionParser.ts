@@ -33,11 +33,12 @@ export class ActionParser {
       const parsed = JSON.parse(cleanedJson);
       return this.validateUniversalFormat(parsed);
     } catch {
+      const reply = this.extractReplyFromBrokenJson(rawResponse);
       return {
         thought: 'Direct response',
         plan_step: 'Conversational response',
         tool_call: null,
-        reply: rawResponse,
+        reply: reply || this.cleanDisplayText(rawResponse),
       };
     }
   }
@@ -91,6 +92,32 @@ export class ActionParser {
     return cleaned;
   }
 
+  private static extractReplyFromBrokenJson(text: string): string | null {
+    const match = text.match(/"reply"\s*:\s*"((?:\\.|[^"\\])*)"/s);
+    if (!match?.[1]) return null;
+
+    try {
+      return JSON.parse(`"${match[1]}"`);
+    } catch {
+      return match[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .replace(/\\t/g, '\t')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\');
+    }
+  }
+
+  private static cleanDisplayText(text: string): string {
+    return text
+      .replace(/^```(?:json|text)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '')
+      .replace(/\\t/g, '\t')
+      .trim();
+  }
+
   private static validateUniversalFormat(obj: any): UniversalResponseFormat {
     if (typeof obj !== 'object' || obj === null) {
       throw new Error('Parsed response is not an object.');
@@ -104,6 +131,7 @@ export class ActionParser {
     const toolObj = obj.tool_call || obj.next_step || obj.next_action;
     if (toolObj && (toolObj.name || toolObj.tool_name)) {
       const validTools = new Set([
+        'list_available_tools',
         'capture_screen',
         'get_page_context',
         'scan_dom_elements',

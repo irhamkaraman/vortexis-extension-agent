@@ -18,6 +18,26 @@ export class ToolRegistry {
   }
 
   public async executeTool(name: ToolName, parameters: SuperAgentToolParams): Promise<ToolResult> {
+    if (name === 'list_available_tools') {
+      return {
+        success: true,
+        data: {
+          title: 'Kemampuan VORTEXIS',
+          tools: [
+            { name: 'get_page_context', description: 'Membaca teks dan konteks halaman, lalu menyimpannya ke RAG.' },
+            { name: 'capture_screen', description: 'Mengambil screenshot tab aktif untuk analisis visual.' },
+            { name: 'scan_interactive_tree', description: 'Menemukan tombol, link, input, dan koordinatnya.' },
+            { name: 'click_coordinate', description: 'Mengklik elemen berdasarkan koordinat atau selector.' },
+            { name: 'type_text', description: 'Mengisi input atau form dengan teks.' },
+            { name: 'scroll_page', description: 'Menggulir halaman ke atas atau ke bawah.' },
+            { name: 'drag_and_drop', description: 'Menggeser elemen dari satu koordinat ke koordinat lain.' },
+            { name: 'trigger_hotkey', description: 'Mengirim shortcut keyboard ke halaman.' },
+            { name: 'request_confirmation', description: 'Meminta persetujuan sebelum aksi berisiko.' },
+          ],
+        },
+      };
+    }
+
     const domain = await this.toolExecutor.getActiveTabDomain();
 
     // Human Safety Gate Confirmation
@@ -87,13 +107,13 @@ export class ToolRegistry {
         case 'click_coordinate': {
           const x = parameters.x ?? 0;
           const y = parameters.y ?? 0;
-          return await this.toolExecutor.clickCoordinate(x, y, parameters.selector);
+          return await this.toolExecutor.clickWithCursor(x, y, parameters.selector);
         }
 
         case 'type_text':
         case 'type_with_delay': {
           const text = parameters.text ?? '';
-          return await this.toolExecutor.typeWithDelay(text, parameters.x, parameters.y, parameters.selector, parameters.wait_ms);
+          return await this.toolExecutor.typeWithCursor(text, parameters.x, parameters.y, parameters.selector, parameters.wait_ms);
         }
 
         case 'scroll_page':
@@ -110,7 +130,7 @@ export class ToolRegistry {
           const startY = parameters.startY ?? 0;
           const endX = parameters.endX ?? 0;
           const endY = parameters.endY ?? 0;
-          return await this.toolExecutor.dragAndDrop(startX, startY, endX, endY);
+          return await this.toolExecutor.dragWithCursor(startX, startY, endX, endY);
         }
 
         case 'trigger_hotkey':

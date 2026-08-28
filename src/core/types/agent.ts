@@ -69,6 +69,7 @@ export interface PlanStatus {
 }
 
 export type ToolName =
+  | 'list_available_tools'
   | 'capture_screen'
   | 'get_page_context'
   | 'scan_dom_elements'

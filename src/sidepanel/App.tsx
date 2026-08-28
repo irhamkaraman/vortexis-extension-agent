@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BackgroundToolExecutor } from '../background';
 import { ChatMessage, FileAttachment, ToolName, TradeDetails } from '../core/types/agent';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
@@ -12,13 +12,15 @@ const toolExecutor = new BackgroundToolExecutor();
 const ragStore = new BrowserRAGStore();
 const toolRegistry = new ToolRegistry(toolExecutor, ragStore);
 const selfHealingDriver = new SelfHealingDriver(toolRegistry, toolExecutor);
-const autonomousPlanner = new AutonomousPlanner(toolRegistry, selfHealingDriver);
+const autonomousPlanner = new AutonomousPlanner(toolRegistry, selfHealingDriver, toolExecutor);
 
 export const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
+  const [isBusy, setIsBusy] = useState<boolean>(false);
   const [activeToolName, setActiveToolName] = useState<string>('');
+  const [hasGreeted, setHasGreeted] = useState<boolean>(false);
 
   const [pendingTradeApproval, setPendingTradeApproval] = useState<{
     tradePlan: TradeDetails;
@@ -27,15 +29,42 @@ export const App: React.FC = () => {
   } | null>(null);
 
   const stopSignalRef = useRef<boolean>(false);
+  const isBusyRef = useRef<boolean>(false);
+  const runIdRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!hasGreeted) {
+      setHasGreeted(true);
+      const greetings = [
+        'Hai! Aku VORTEXIS, asisten otomatis di browser kamu.',
+        'Halo! Senang bertemu denganmu.',
+        'Hai bos, aku siap kerja!',
+      ];
+      const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+      setMessages([{
+        id: 'msg-greeting-0',
+        role: 'assistant',
+        content: `${greeting}\n\nMau aku bantu apa hari ini? Bisa otomasi browsing, analisis halaman, isi form, atau analisis chart trading — tinggal bilang aja!`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    }
+  }, []);
 
   const handleSendMessage = async (text: string, attachments: FileAttachment[]) => {
+    if (isBusyRef.current) return;
+    const runId = ++runIdRef.current;
+    isBusyRef.current = true;
+    setIsBusy(true);
     stopSignalRef.current = false;
     setPendingTradeApproval(null);
 
     let fullPromptText = text;
-    if (attachments.length > 0) {
-      const fileSummary = attachments
-        .map((a) => `[File Attached: ${a.name} (${a.type})]\n${a.isImage ? '[Base64 Image Attached]' : a.content}`)
+    const imageAttachments = attachments.filter((a) => a.isImage);
+    const nonImageAttachments = attachments.filter((a) => !a.isImage);
+
+    if (nonImageAttachments.length > 0) {
+      const fileSummary = nonImageAttachments
+        .map((a) => `[File Attached: ${a.name} (${a.type})]\n${a.content}`)
         .join('\n\n');
       fullPromptText = `${text}\n\n${fileSummary}`;
     }
@@ -55,10 +84,19 @@ export const App: React.FC = () => {
       await autonomousPlanner.runSuperAgentLoop(
         fullPromptText,
         [...messages, userMsg],
-        (stepUpdateMsg: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string }) => {
+        (stepUpdateMsg: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string; streamingComplete?: boolean }) => {
+          if (runId !== runIdRef.current || stopSignalRef.current) return;
+
           if (extraState) {
-            setIsExecutingTool(Boolean(extraState.isExecutingTool));
+            const exec = Boolean(extraState.isExecutingTool);
+            setIsExecutingTool(exec);
             setActiveToolName(extraState.activeToolName || '');
+
+            if (exec) {
+              setIsThinking(true);
+            }
+            // `streamingComplete` only means this response chunk ended. The
+            // agent may still be executing tools, so request state stays busy.
           }
 
           setMessages((prev) => {
@@ -102,14 +140,22 @@ export const App: React.FC = () => {
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
-      setIsThinking(false);
-      setIsExecutingTool(false);
-      setActiveToolName('');
-      setPendingTradeApproval(null);
+      if (runId === runIdRef.current) {
+        isBusyRef.current = false;
+        setIsBusy(false);
+        setIsThinking(false);
+        setIsExecutingTool(false);
+        setActiveToolName('');
+        setPendingTradeApproval(null);
+      }
     }
   };
 
   const handleTriggerQuickTool = async (toolName: ToolName) => {
+    if (isBusyRef.current) return;
+    const runId = ++runIdRef.current;
+    isBusyRef.current = true;
+    setIsBusy(true);
     stopSignalRef.current = false;
     setPendingTradeApproval(null);
 
@@ -136,7 +182,9 @@ export const App: React.FC = () => {
         toolResult: toolRes,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, aiMsg]);
+      if (runId === runIdRef.current && !stopSignalRef.current) {
+        setMessages((prev) => [...prev, aiMsg]);
+      }
     } catch (err: any) {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
@@ -146,23 +194,33 @@ export const App: React.FC = () => {
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
-      setIsThinking(false);
-      setIsExecutingTool(false);
-      setActiveToolName('');
+      if (runId === runIdRef.current) {
+        isBusyRef.current = false;
+        setIsBusy(false);
+        setIsThinking(false);
+        setIsExecutingTool(false);
+        setActiveToolName('');
+      }
     }
   };
 
   const handleClearChat = () => {
+    runIdRef.current++;
+    isBusyRef.current = false;
     stopSignalRef.current = true;
     setMessages([]);
     setIsThinking(false);
+    setIsBusy(false);
     setIsExecutingTool(false);
     setActiveToolName('');
     setPendingTradeApproval(null);
   };
 
   const handleStop = () => {
+    runIdRef.current++;
+    isBusyRef.current = false;
     stopSignalRef.current = true;
+    setIsBusy(false);
     setIsThinking(false);
     setIsExecutingTool(false);
     setActiveToolName('');
@@ -170,7 +228,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-screen bg-black text-neutral-100 flex flex-col font-sans select-none overflow-hidden">
+    <div className="vortexis-app w-full h-screen text-neutral-100 flex flex-col font-sans select-none overflow-hidden">
       <ChatPanelContainer
         messages={messages}
         isThinking={isThinking}
@@ -184,7 +242,7 @@ export const App: React.FC = () => {
         onSendMessage={handleSendMessage}
         onTriggerQuickTool={handleTriggerQuickTool}
         onStop={handleStop}
-        isThinking={isThinking}
+        isBusy={isBusy}
       />
     </div>
   );

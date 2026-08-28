@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowDown, Camera, FileText, Paperclip, Scan, Send, Square } from 'lucide-react';
+import { Paperclip, Send, Square } from 'lucide-react';
 import { FileAttachment, ToolName } from '../../core/types/agent';
 import { FileUploadManager } from './FileUploadManager';
 
@@ -7,14 +7,14 @@ interface ChatInputProps {
   onSendMessage: (text: string, attachments: FileAttachment[]) => void;
   onTriggerQuickTool: (toolName: ToolName) => void;
   onStop: () => void;
-  isThinking: boolean;
+  isBusy: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   onTriggerQuickTool,
   onStop,
-  isThinking,
+  isBusy,
 }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -29,9 +29,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [input]);
 
-  const handleFileChange = async (files: FileList | null) => {
-    if (!files) return;
-
+  const readFiles = async (files: File[]) => {
     const newAttachments: FileAttachment[] = [];
 
     for (let i = 0; i < files.length; i++) {
@@ -61,13 +59,32 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setAttachments((prev: FileAttachment[]) => [...prev, ...newAttachments]);
   };
 
+  const handleFileChange = async (files: FileList | null) => {
+    if (!files) return;
+    await readFiles(Array.from(files));
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (isBusy) return;
+    const pastedFiles = Array.from(e.clipboardData.items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null);
+
+    if (pastedFiles.length === 0) return;
+    e.preventDefault();
+    await readFiles(pastedFiles.map((file, index) => file.name
+      ? file
+      : new File([file], `pasted-file-${Date.now()}-${index}`, { type: file.type })));
+  };
+
   const handleRemoveAttachment = (id: string) => {
     setAttachments((prev: FileAttachment[]) => prev.filter((a: FileAttachment) => a.id !== id));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if ((input.trim() || attachments.length > 0) && !isThinking) {
+    if ((input.trim() || attachments.length > 0) && !isBusy) {
       onSendMessage(input.trim(), attachments);
       setInput('');
       setAttachments([]);
@@ -103,53 +120,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`bg-black border-t border-neutral-800 p-3 flex flex-col gap-2 transition-colors ${
-        isDragging ? 'bg-neutral-900 border-neutral-600' : ''
+      className={`vortexis-input-shell p-3 flex flex-col gap-2 transition-colors ${
+        isDragging ? 'is-dragging' : ''
       }`}
     >
-      {/* Universal Quick Action Chips (No Emojis) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[10px] scrollbar-none font-mono">
-        <button
-          type="button"
-          onClick={() => onTriggerQuickTool('capture_screen')}
-          disabled={isThinking}
-          className="px-2 py-1 rounded bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-neutral-300 border border-neutral-800 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
-        >
-          <Camera className="w-3 h-3 text-neutral-400" strokeWidth={1.5} />
-          <span>Screenshot</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onTriggerQuickTool('scan_dom_elements')}
-          disabled={isThinking}
-          className="px-2 py-1 rounded bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-neutral-300 border border-neutral-800 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
-        >
-          <Scan className="w-3 h-3 text-neutral-400" strokeWidth={1.5} />
-          <span>Scan DOM</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onTriggerQuickTool('scroll_page')}
-          disabled={isThinking}
-          className="px-2 py-1 rounded bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-neutral-300 border border-neutral-800 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
-        >
-          <ArrowDown className="w-3 h-3 text-neutral-400" strokeWidth={1.5} />
-          <span>Scroll Down</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onTriggerQuickTool('get_page_context')}
-          disabled={isThinking}
-          className="px-2 py-1 rounded bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-neutral-300 border border-neutral-800 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
-        >
-          <FileText className="w-3 h-3 text-neutral-400" strokeWidth={1.5} />
-          <span>Ingest Context</span>
-        </button>
-      </div>
-
       {/* Attachment Chips */}
       <FileUploadManager attachments={attachments} onRemoveAttachment={handleRemoveAttachment} />
 
@@ -166,7 +140,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={isThinking}
+          disabled={isBusy}
           className="absolute left-2.5 p-1 text-neutral-500 hover:text-neutral-200 transition-colors disabled:opacity-40 cursor-pointer"
           title="Attach files (Images, CSV, JSON, Code, PDF)"
         >
@@ -177,27 +151,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onPaste={handlePaste}
           onKeyDown={handleKeyDown}
           placeholder="Ketik instruksi atau seret file ke sini..."
           rows={1}
-          disabled={isThinking}
-          className="w-full bg-transparent border border-neutral-800 rounded-md py-2 pl-9 pr-9 text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors resize-none disabled:opacity-50 font-sans"
+          disabled={isBusy}
+          className="vortexis-command-input w-full rounded-xl py-2.5 pl-10 pr-12 text-xs text-neutral-100 placeholder-neutral-600 focus:outline-none transition-colors resize-none disabled:opacity-50 font-sans"
         />
 
-        {isThinking ? (
+        {isBusy ? (
           <button
             type="button"
             onClick={onStop}
-            className="absolute right-2 p-1 rounded bg-neutral-900 hover:bg-red-950 border border-red-800 text-red-400 transition-all cursor-pointer"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-red-950/90 hover:bg-red-900 border border-red-700 text-red-400 transition-all cursor-pointer flex items-center gap-1"
             title="Hentikan Eksekusi"
           >
             <Square className="w-3.5 h-3.5 fill-current" strokeWidth={1.5} />
+            <span className="text-[10px] font-mono">STOP</span>
           </button>
         ) : (
           <button
             type="submit"
-            disabled={(!input.trim() && attachments.length === 0) || isThinking}
-            className="absolute right-2 p-1 rounded bg-white text-black hover:bg-neutral-200 disabled:opacity-30 transition-all cursor-pointer"
+            disabled={!input.trim() && attachments.length === 0}
+            className="absolute right-2 p-1.5 rounded-lg bg-neutral-100 text-neutral-950 hover:bg-white disabled:opacity-30 transition-all cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" strokeWidth={1.5} />
           </button>

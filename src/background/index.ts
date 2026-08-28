@@ -178,12 +178,12 @@ export class BackgroundToolExecutor {
     return tabs[0]?.id;
   }
 
-  private async ensureContentScriptInjected(tabId: number): Promise<void> {
-    if (!chrome.scripting) return;
+  private async ensureContentScriptInjected(tabId: number): Promise<boolean> {
+    if (!chrome.scripting) return false;
 
     const tab = await chrome.tabs.get(tabId);
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
-      throw new Error('Tidak dapat menjalankan agent di halaman terlarang (chrome://, about:blank, dll). Harap buka tab website umum.');
+      return false;
     }
 
     try {
@@ -191,8 +191,9 @@ export class BackgroundToolExecutor {
         target: { tabId },
         files: ['src/content/index.js'],
       });
+      return true;
     } catch {
-      // Ignore duplicate injection warnings
+      return false;
     }
   }
 
@@ -212,5 +213,121 @@ export class BackgroundToolExecutor {
         resolve(response?.data || response);
       });
     });
+  }
+
+  public async enableOverlay(tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_ENABLE' });
+    return true;
+  }
+
+  public async disableOverlay(tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_DISABLE' });
+    return true;
+  }
+
+  public async setOverlayStatus(text: string, tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, {
+      type: 'OVERLAY_STATUS',
+      payload: { text },
+    });
+    return true;
+  }
+
+  public async removeOverlayStatus(tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_STATUS_REMOVE' });
+    return true;
+  }
+
+  public async moveCursor(x: number, y: number, duration?: number, tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, {
+      type: 'OVERLAY_MOVE_CURSOR',
+      payload: { x, y, duration: duration || 500 },
+    });
+    return true;
+  }
+
+  public async clickAnimation(tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_CLICK' });
+    return true;
+  }
+
+  public async showGrid(tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_GRID_SHOW' });
+    return true;
+  }
+
+  public async hideGrid(tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_GRID_HIDE' });
+    return true;
+  }
+
+  public async destroyAll(tabId?: number): Promise<boolean> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return false;
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_DESTROY_ALL' });
+    return true;
+  }
+
+  public async clickWithCursor(x: number, y: number, selector?: string, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return { success: false, error: 'Tidak dapat menyuntikkan script ke halaman target. Pastikan halaman website terbuka.' };
+
+    await this.moveCursor(x, y, 400, targetTabId);
+    await this.clickAnimation(targetTabId);
+    await new Promise((r) => setTimeout(r, 150));
+
+    return await this.clickCoordinate(x, y, selector, targetTabId);
+  }
+
+  public async typeWithCursor(text: string, x?: number, y?: number, selector?: string, waitMs?: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return { success: false, error: 'Tidak dapat menyuntikkan script ke halaman target.' };
+
+    if (x !== undefined && y !== undefined) {
+      await this.moveCursor(x, y, 400, targetTabId);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    return await this.typeWithDelay(text, x, y, selector, waitMs, targetTabId);
+  }
+
+  public async dragWithCursor(startX: number, startY: number, endX: number, endY: number, tabId?: number): Promise<{ success: boolean; result?: string; error?: string }> {
+    const targetTabId = tabId || (await this.getActiveTabId());
+    if (!targetTabId) return { success: false, error: 'Tidak ada tab Chrome yang aktif.' };
+    if (!(await this.ensureContentScriptInjected(targetTabId))) return { success: false, error: 'Tidak dapat menyuntikkan script ke halaman target.' };
+
+    await this.moveCursor(startX, startY, 300, targetTabId);
+    await this.clickAnimation(targetTabId);
+    await new Promise((r) => setTimeout(r, 200));
+    await this.moveCursor(endX, endY, 500, targetTabId);
+
+    return await this.dragAndDrop(startX, startY, endX, endY, targetTabId);
   }
 }

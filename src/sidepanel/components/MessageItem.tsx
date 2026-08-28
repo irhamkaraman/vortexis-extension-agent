@@ -31,18 +31,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
             : 'bg-black border-neutral-800 text-neutral-200 self-start'
         }`}
       >
-        {/* Stealth Observation Log Box */}
-        {message.thoughtProcess && (message.thoughtProcess.thought || message.thoughtProcess.current_observation) && (
-          <div className="mb-2.5 p-2 bg-neutral-950 rounded border border-neutral-900 font-mono text-[10px] space-y-1 text-neutral-400 overflow-hidden">
-            <div>
-              <span className="text-neutral-500 font-bold">REASONING:</span>{' '}
-              <span className="text-neutral-300 break-words whitespace-pre-wrap">
-                {message.thoughtProcess.thought || message.thoughtProcess.technical_reasoning || message.thoughtProcess.current_observation}
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Message Content */}
         {message.content ? (
           <div className="prose prose-invert prose-xs leading-relaxed max-w-none break-words font-sans overflow-wrap-anywhere">

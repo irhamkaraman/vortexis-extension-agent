@@ -64,4 +64,13 @@ export type IPCMessage =
   | { type: 'SCROLL_AND_FIND'; payload: { direction?: 'up' | 'down'; amount?: number } }
   | { type: 'SCROLL_AND_FIND_RESPONSE'; payload: { success: boolean; result?: string; error?: string } }
   | { type: 'EXTRACT_STRUCTURED_DATA'; payload?: Record<string, never> }
-  | { type: 'EXTRACT_STRUCTURED_DATA_RESPONSE'; payload: { success: boolean; title?: string; url?: string; cleanText?: string; error?: string } };
+  | { type: 'EXTRACT_STRUCTURED_DATA_RESPONSE'; payload: { success: boolean; title?: string; url?: string; cleanText?: string; error?: string } }
+  | { type: 'OVERLAY_ENABLE'; payload?: Record<string, never> }
+  | { type: 'OVERLAY_DISABLE'; payload?: Record<string, never> }
+  | { type: 'OVERLAY_STATUS'; payload: { text: string } }
+  | { type: 'OVERLAY_STATUS_REMOVE'; payload?: Record<string, never> }
+  | { type: 'OVERLAY_MOVE_CURSOR'; payload: { x: number; y: number; duration?: number } }
+  | { type: 'OVERLAY_CLICK'; payload?: Record<string, never> }
+  | { type: 'OVERLAY_GRID_SHOW'; payload?: Record<string, never> }
+  | { type: 'OVERLAY_GRID_HIDE'; payload?: Record<string, never> }
+  | { type: 'OVERLAY_DESTROY_ALL'; payload?: Record<string, never> };

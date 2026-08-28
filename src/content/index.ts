@@ -3,6 +3,7 @@ import { PointerSimulator } from '../modules/canvas-driver/PointerSimulator';
 import { CoordinateDriver } from '../modules/dom-driver/CoordinateDriver';
 import { CanvasDrawingDriver } from '../modules/trading/CanvasDrawingDriver';
 import { OrderExecutionManager } from '../modules/trading/OrderExecutionManager';
+import { PageLockDriver } from '../modules/overlay/PageLockDriver';
 
 console.log('[VORTEXIS] Content Script loaded.');
 
@@ -79,6 +80,60 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
         const url = window.location.href;
         const cleanText = document.body.innerText || document.body.textContent || '';
         sendResponse({ success: true, title, url, cleanText });
+        break;
+      }
+
+      case 'OVERLAY_ENABLE': {
+        PageLockDriver.enableOverlay();
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_DISABLE': {
+        PageLockDriver.disableOverlay();
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_STATUS': {
+        PageLockDriver.updateStatus(message.payload.text);
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_STATUS_REMOVE': {
+        PageLockDriver.removeStatus();
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_MOVE_CURSOR': {
+        PageLockDriver.moveCursor(message.payload.x, message.payload.y, message.payload.duration);
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_CLICK': {
+        PageLockDriver.clickAnimation();
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_GRID_SHOW': {
+        PageLockDriver.showGrid();
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_GRID_HIDE': {
+        PageLockDriver.hideGrid();
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'OVERLAY_DESTROY_ALL': {
+        PageLockDriver.destroyAll();
+        sendResponse({ success: true });
         break;
       }
 
