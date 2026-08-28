@@ -12,6 +12,7 @@ import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } fr
 const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
 const STREAM_TIMEOUT_MS = 60_000;
 const CASUAL_STREAM_TIMEOUT_MS = 15_000;
+const MAX_STREAM_ATTEMPTS = 2;
 
 interface NativeToolCall { id: string; name: string; arguments: string; }
 interface NativeDecision { content: string; toolCalls: NativeToolCall[]; }
@@ -374,12 +375,12 @@ export class AutonomousPlanner {
       requestBody.stream = true;
       onStreamStatus?.('Menerima respons AI...');
       try {
-        const response = await Promise.race<any>([
-          this.openai.chat.completions.create(requestBody as any, { signal: abortController.signal }),
-           this.rejectAfter(requestTimeout, 'Stream AI timeout sebelum menerima respons.'),
+        const response = await Promise.race<Response>([
+          this.fetchSenseNovaStreamWithRetry(requestBody, abortController.signal, requestTimeout, MAX_STREAM_ATTEMPTS, onStreamStatus),
+          this.rejectAfter(requestTimeout, 'Stream AI timeout sebelum menerima respons.'),
         ]);
         const nativeResponse = await Promise.race<NativeDecision>([
-           this.collectResponseContent(response, shouldStop, abortController, onStreamStatus, onStreamText),
+           this.collectSseResponse(response, shouldStop, abortController, onStreamStatus, onStreamText),
            this.rejectAfter(requestTimeout, 'Stream AI timeout saat membaca delta.'),
         ]);
         if (nativeResponse.toolCalls.length > 0) {
@@ -434,6 +435,98 @@ export class AutonomousPlanner {
 
   private isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
     return typeof value === 'object' && value !== null && Symbol.asyncIterator in value;
+  }
+
+  private async fetchSenseNovaStream(body: Record<string, unknown>, signal: AbortSignal): Promise<Response> {
+    const response = await fetch(`${this.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.hardcodedApiKey}`,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`SenseNova HTTP ${response.status}: ${errorBody.slice(0, 240)}`);
+    }
+    if (!response.body) throw new Error('SenseNova tidak mengembalikan stream body.');
+    return response;
+  }
+
+  private async fetchSenseNovaStreamWithRetry(
+    body: Record<string, unknown>,
+    signal: AbortSignal,
+    timeoutMs: number,
+    maxAttempts: number,
+    onStreamStatus?: (statusText: string) => void,
+  ): Promise<Response> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (signal.aborted) throw new Error('Eksekusi dihentikan oleh pengguna.');
+      const attemptController = new AbortController();
+      const relayAbort = () => attemptController.abort();
+      signal.addEventListener('abort', relayAbort, { once: true });
+      const timer = window.setTimeout(() => attemptController.abort(), timeoutMs);
+      try {
+        return await this.fetchSenseNovaStream(body, attemptController.signal);
+      } catch (error) {
+        lastError = error;
+        if (signal.aborted || attempt === maxAttempts) throw error;
+        onStreamStatus?.('SenseNova belum merespons — mencoba lagi...');
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+      } finally {
+        window.clearTimeout(timer);
+        signal.removeEventListener('abort', relayAbort);
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('SenseNova stream gagal.');
+  }
+
+  private async collectSseResponse(
+    response: Response,
+    shouldStop: () => boolean,
+    abortController: AbortController,
+    onStreamStatus?: (statusText: string) => void,
+    onStreamText?: (partialText: string) => void,
+  ): Promise<NativeDecision> {
+    if (!response.body) throw new Error('SenseNova stream body kosong.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    const toolCalls = new Map<number, NativeToolCall>();
+    const consume = (payload: string) => {
+      if (!payload || payload === '[DONE]') return;
+      let chunk: { choices?: Array<{ delta?: { content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }> };
+      try { chunk = JSON.parse(payload); } catch { return; }
+      const delta = chunk.choices?.[0]?.delta;
+      const text = delta?.content || '';
+      content += text;
+      if (text && !content.trimStart().startsWith('{') && !content.includes('```json')) onStreamText?.(content);
+      for (const call of delta?.tool_calls || []) {
+        const index = call.index || 0;
+        const current = toolCalls.get(index) || { id: '', name: '', arguments: '' };
+        current.id += call.id || '';
+        current.name += call.function?.name || '';
+        current.arguments += call.function?.arguments || '';
+        toolCalls.set(index, current);
+        onStreamStatus?.('Menyiapkan langkah yang diperlukan...');
+      }
+    };
+    while (true) {
+      if (shouldStop()) { abortController.abort(); throw new Error('Eksekusi dihentikan oleh pengguna.'); }
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || '';
+      for (const line of lines) if (line.startsWith('data:')) consume(line.slice(5).trim());
+    }
+    if (buffer.startsWith('data:')) consume(buffer.slice(5).trim());
+    return { content, toolCalls: [...toolCalls.values()] };
   }
 
   private requestNeedsBrowserTools(userGoal: string): boolean {
