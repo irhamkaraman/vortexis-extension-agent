@@ -331,7 +331,7 @@ export class AutonomousPlanner {
         model: this.modelName,
         messages,
         temperature: 0.2,
-        reasoning_effort: 'none',
+        reasoning_effort: 'medium',
       };
       if (needsTools) {
         requestBody.tools = getNativeToolDefinitions();
