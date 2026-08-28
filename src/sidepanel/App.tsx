@@ -21,26 +21,16 @@ export const App: React.FC = () => {
   const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
   const [isBusy, setIsBusy] = useState<boolean>(false);
   const [activeToolName, setActiveToolName] = useState<string>('');
-  const [statusText, setStatusText] = useState<string>('Menyiapkan jawaban...');
+  const [statusText, setStatusText] = useState<string>('Thinking...');
   const [activity, setActivity] = useState<AgentActivityState>({ isActive: false, statusText: '', steps: [] });
   const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium');
 
+  // Keep a stable status indicator without rotating/distracting text
   useEffect(() => {
-    if (!isThinking) return;
-    const phases = [
-      'Menganalisis permintaan...',
-      'Menerima respons AI...',
-      'Menyusun konteks yang relevan...',
-      'Menyiapkan jawaban...',
-    ];
-    let phaseIndex = phases.indexOf(statusText);
-    if (phaseIndex < 0) phaseIndex = 0;
-    const timer = window.setInterval(() => {
-      phaseIndex = (phaseIndex + 1) % phases.length;
-      setStatusText(phases[phaseIndex]);
-    }, 1400);
-    return () => window.clearInterval(timer);
-  }, [isThinking]);
+    if (isThinking && !isExecutingTool) {
+      setStatusText('Thinking...');
+    }
+  }, [isThinking, isExecutingTool]);
 
   const [pendingTradeApproval, setPendingTradeApproval] = useState<{
     tradePlan: TradeDetails;
