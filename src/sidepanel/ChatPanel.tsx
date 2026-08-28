@@ -6,6 +6,7 @@ import { MinimalHeader } from './components/MinimalHeader';
 import { PermissionModal } from './components/PermissionModal';
 import { ThinkingIndicator } from './components/ThinkingIndicator';
 import { TradeApprovalCard } from './components/TradeApprovalCard';
+import { AgentActivityTimeline } from './components/AgentActivityTimeline';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -110,6 +111,15 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
             activeToolName={activeToolName}
           />
         )}
+
+        {/* Persistent Activity Timeline — shows tool execution steps */}
+        <AgentActivityTimeline
+          activity={activity}
+          isExecutingTool={isExecutingTool}
+          activeToolName={activeToolName}
+          statusText={statusText}
+          isThinking={isThinking}
+        />
 
         <div ref={bottomRef} />
       </div>

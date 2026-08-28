@@ -106,14 +106,12 @@ export const App: React.FC = () => {
             }
           }
 
-          // A natural-language delta is the answer stream itself. Do not keep
-          // the separate activity placeholder beside it; that was the source
-          // of the duplicated conversational response in the panel.
+          // A natural-language delta is the answer stream itself. Do not set
+          // isThinking=false here — the tool loop may still be running.
+          // Thinking will be cleared in the finally block when the run truly ends.
           if (stepUpdateMsg.content && !stepUpdateMsg.toolCall) {
-            setIsThinking(false);
             setIsExecutingTool(false);
             setActiveToolName('');
-            setActivity((current) => ({ ...current, isActive: false, statusText: 'Menyiapkan jawaban' }));
           }
 
           setMessages((prev) => {
