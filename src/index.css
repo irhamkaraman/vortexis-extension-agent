@@ -201,13 +201,14 @@
 .vortexis-stealth-log-toggle { border: 0; background: transparent; }
 .vortexis-stealth-log-details { background: transparent; border: 0; }
 .vortexis-thinking-orb {
-  width: 10px;
-  height: 10px;
+  width: 13px;
+  height: 13px;
   flex: 0 0 auto;
-  border: 1px solid #55d6ff;
+  border: 2px solid rgba(85,214,255,.22);
+  border-top-color: #55d6ff;
   border-radius: 50%;
-  box-shadow: 0 0 0 0 rgba(85,214,255,.35);
-  animation: vortexis-orbit-pulse 1.7s ease-out infinite;
+  box-shadow: 0 0 10px rgba(85,214,255,.2);
+  animation: vortexis-spinner .8s linear infinite;
 }
 .vortexis-thinking-label {
   background: linear-gradient(90deg, #a9b7c8 0%, #f3f7fb 45%, #7c8b9d 75%);
@@ -219,11 +220,22 @@
 }
 .vortexis-thinking-dots { display: inline-flex; gap: 3px; align-items: center; }
 .vortexis-thinking-dots i {
-  width: 3px; height: 3px; border-radius: 50%; background: #55d6ff;
+  width: 4px; height: 4px; border-radius: 50%; background: #55d6ff;
   animation: vortexis-dot-bounce 1.2s ease-in-out infinite;
 }
 .vortexis-thinking-dots i:nth-child(2) { animation-delay: .15s; }
 .vortexis-thinking-dots i:nth-child(3) { animation-delay: .3s; }
+.vortexis-thinking-toggle {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  color: #708095;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color .16s ease, transform .16s ease;
+}
+.vortexis-thinking-toggle:hover { color: #dce6f2; transform: translateX(1px); }
 .vortexis-live-thought,
 .vortexis-step-details {
   margin: 4px 0 0 20px;
@@ -237,7 +249,7 @@
 .vortexis-step-details pre { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; color: #9ca7b5; }
 
 @keyframes vortexis-message-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes vortexis-orbit-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(85,214,255,.28); } 50% { box-shadow: 0 0 0 5px rgba(85,214,255,0); } }
+@keyframes vortexis-spinner { to { transform: rotate(360deg); } }
 @keyframes vortexis-shimmer { to { background-position: -220% center; } }
 @keyframes vortexis-dot-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .35; } 30% { transform: translateY(-3px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {

@@ -89,10 +89,10 @@ export class AutonomousPlanner {
           role: 'assistant',
           content: '',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }, { isExecutingTool: false });
+        }, { isExecutingTool: false, statusText: 'Menganalisis permintaan...' });
 
         const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments, (statusText) => {
-          onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText });
+          onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText, isExecutingTool: false });
         });
 
         // A tool-call turn is an internal activity step, not a user-facing answer.
@@ -122,7 +122,12 @@ export class AutonomousPlanner {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
-        onStepUpdate(finalStepMsg, { isExecutingTool: false, streamingComplete: true });
+        onStepUpdate(finalStepMsg, {
+          isExecutingTool: Boolean(turnResponse.tool_call && !isFinishSignal),
+          activeToolName: turnResponse.tool_call && !isFinishSignal ? turnResponse.tool_call.name : undefined,
+          statusText: turnResponse.tool_call && !isFinishSignal ? 'Menyiapkan langkah berikutnya...' : undefined,
+          streamingComplete: !turnResponse.tool_call || isFinishSignal,
+        });
 
         if (!turnResponse.tool_call || turnResponse.tool_call.name === 'finish_task') {
           break;
@@ -131,7 +136,7 @@ export class AutonomousPlanner {
         const toolName = turnResponse.tool_call.name;
         const params = turnResponse.tool_call.parameters;
 
-        onStepUpdate(finalStepMsg, { isExecutingTool: true, activeToolName: toolName });
+        onStepUpdate(finalStepMsg, { isExecutingTool: true, activeToolName: toolName, statusText: 'Menjalankan langkah yang diperlukan...' });
 
         if (toolName === 'request_confirmation' || toolName === 'request_user_confirmation' || toolName === 'request_trade_confirmation') {
           const details = params.details || params.warning_message || 'Konfirmasi aksi berisiko tinggi diperlukan.';
@@ -221,7 +226,7 @@ export class AutonomousPlanner {
         }
 
         finalStepMsg.toolResult = toolRes;
-        onStepUpdate({ ...finalStepMsg }, { isExecutingTool: false, streamingComplete: true });
+        onStepUpdate({ ...finalStepMsg }, { isExecutingTool: true, activeToolName: toolName, statusText: 'Memproses hasil langkah...' });
 
         conversationTurns.push({ role: 'assistant', content: JSON.stringify(turnResponse) });
         conversationTurns.push({

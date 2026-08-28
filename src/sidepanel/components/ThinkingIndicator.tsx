@@ -56,11 +56,11 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
         <span className="vortexis-thinking-orb" aria-hidden="true" />
         <span className="vortexis-thinking-label">{derivedStatus}</span>
         <span className="vortexis-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
-        {thought && <button type="button" onClick={() => setThoughtOpen((open) => !open)} className="ml-auto text-neutral-500 hover:text-neutral-200" aria-label="Tampilkan proses berpikir">
-          {thoughtOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-        </button>}
+        <button type="button" onClick={() => setThoughtOpen((open) => !open)} className="vortexis-thinking-toggle" aria-label="Tampilkan status proses">
+           {thoughtOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        </button>
       </div>
-      {thoughtOpen && thought && thought !== 'Direct response' && <div className="vortexis-live-thought">{thought}</div>}
+      {thoughtOpen && <div className="vortexis-live-thought">VORTEXIS sedang memproses permintaan secara aman. Detail internal dan pemanggilan tool tidak ditampilkan.</div>}
     </motion.div>
   );
 };

@@ -86,7 +86,7 @@ export const App: React.FC = () => {
       await autonomousPlanner.runSuperAgentLoop(
         fullPromptText,
         [...messages, userMsg],
-        (stepUpdateMsg: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string; streamingComplete?: boolean }) => {
+        (stepUpdateMsg: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string; statusText?: string; streamingComplete?: boolean }) => {
           if (runId !== runIdRef.current || stopSignalRef.current) return;
 
           if (extraState) {
@@ -94,12 +94,12 @@ export const App: React.FC = () => {
             setIsExecutingTool(exec);
             setActiveToolName(extraState.activeToolName || '');
 
-            if (exec || !extraState.streamingComplete) {
-              setIsThinking(true);
-            } else {
-              // A completed no-tool response is the final answer. Do not leave
-              // a live activity indicator underneath that answer.
+            if (extraState.statusText) setStatusText(extraState.statusText);
+
+            if (extraState.streamingComplete === true) {
               setIsThinking(false);
+            } else {
+              setIsThinking(true);
             }
           }
 
@@ -218,7 +218,7 @@ export const App: React.FC = () => {
     setIsBusy(false);
     setIsExecutingTool(false);
     setActiveToolName('');
-    setStatusText('Menyiapkan jawaban...');
+        setStatusText('Menyiapkan jawaban...');
     setPendingTradeApproval(null);
   };
 
