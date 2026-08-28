@@ -54,12 +54,29 @@ export class ActionParser {
       const parsed = this.parseJsonCandidates(rawResponse);
       return this.validateUniversalFormat(parsed);
     } catch {
+      const rawText = rawResponse.trim();
+      const toolMatch = rawText.match(/<tool_name>\s*(.*?)\s*<\/tool_name>/i) || rawText.match(/tool_call:\s*([a-zA-Z0-9_]+)/i);
+      
+      let tool_call = null;
+      let replyText = this.cleanDisplayText(rawResponse);
+      
+      if (toolMatch && toolMatch[1]) {
+        const rawToolName = toolMatch[1].trim();
+        if (TOOL_NAMES.has(rawToolName as ToolName)) {
+           tool_call = {
+             name: rawToolName as ToolName,
+             parameters: {},
+           };
+           replyText = replyText.replace(/<tool_name>.*?<\/tool_name>/gi, '').trim();
+        }
+      }
+
       const reply = this.extractReplyFromBrokenJson(rawResponse);
       return {
         thought: 'Direct response',
         plan_step: 'Conversational response',
-        tool_call: null,
-        reply: reply || this.cleanDisplayText(rawResponse),
+        tool_call,
+        reply: reply || replyText,
       };
     }
   }
