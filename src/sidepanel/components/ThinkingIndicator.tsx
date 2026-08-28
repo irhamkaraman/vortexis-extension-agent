@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 const TOOL_STATUS_MESSAGES: Record<string, string> = {
@@ -50,10 +50,11 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   const derivedStatus = statusText || (activeToolName ? TOOL_STATUS_MESSAGES[activeToolName] || `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...');
 
   return (
-    <div className="vortexis-live-activity my-2 w-full max-w-full animate-in fade-in duration-200">
-      <div className="vortexis-live-status">
-        <Loader2 className="w-3.5 h-3.5 text-sky-400 animate-spin shrink-0" strokeWidth={2} />
-        <span className="truncate">{derivedStatus}</span>
+    <div className="vortexis-live-activity" role="status" aria-live="polite">
+      <div className="vortexis-thinking-line">
+        <span className="vortexis-thinking-orb" aria-hidden="true" />
+        <span className="vortexis-thinking-label">{derivedStatus}</span>
+        <span className="vortexis-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
         {thought && <button type="button" onClick={() => setThoughtOpen((open) => !open)} className="ml-auto text-neutral-500 hover:text-neutral-200" aria-label="Tampilkan proses berpikir">
           {thoughtOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
         </button>}

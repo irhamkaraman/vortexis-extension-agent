@@ -156,7 +156,7 @@ export const StealthLogCard: React.FC<StealthLogCardProps> = ({ toolName, parame
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between text-neutral-400 hover:text-neutral-200 transition-colors bg-neutral-950/60 border border-neutral-800/60 rounded-lg p-2.5 text-xs"
+        className="vortexis-stealth-log-toggle w-full flex items-center justify-between text-neutral-400 hover:text-neutral-200 transition-colors p-1 text-xs"
       >
         <span className="flex items-center gap-2 truncate">
           {icon}
@@ -178,14 +178,14 @@ export const StealthLogCard: React.FC<StealthLogCardProps> = ({ toolName, parame
       {isOpen && (
         <div className="mt-2 pt-2 border-t border-neutral-800/60 space-y-2">
           {parameters && Object.keys(parameters).length > 0 && (
-            <div className="bg-neutral-950 p-2 rounded border border-neutral-900 text-[10px] text-neutral-400 overflow-x-auto">
+            <div className="vortexis-stealth-log-details p-1 text-[10px] text-neutral-400 overflow-x-auto">
               <span className="text-neutral-500 font-bold block mb-0.5">PARAMETRES:</span>
               <pre className="whitespace-pre-wrap font-mono break-all">{JSON.stringify(parameters, null, 2)}</pre>
             </div>
           )}
 
           {result && (
-            <div className="bg-neutral-950 p-2 rounded border border-neutral-900 text-[10px] space-y-1">
+            <div className="vortexis-stealth-log-details p-1 text-[10px] space-y-1">
               <div className="flex items-center gap-1.5">
                 {result.success ? (
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" strokeWidth={1.5} />

@@ -26,7 +26,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
     const thought = message.thoughtProcess?.thought || message.thoughtProcess?.current_observation;
 
     return (
-      <div className="vortexis-agent-step my-1.5 w-full max-w-full">
+      <div className="vortexis-agent-step my-1 w-full max-w-full">
         <button type="button" onClick={() => setDetailsOpen((open) => !open)} className="vortexis-step-toggle">
           <span className="flex items-center gap-2 min-w-0">
             {completed ? (succeeded ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-red-400" />) : <Loader2 className="w-3.5 h-3.5 text-sky-400 animate-spin" />}
@@ -46,18 +46,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   }
 
   return (
-    <div className={`flex flex-col my-2 w-full max-w-full ${isUser ? 'items-end' : 'items-start'}`}>
-      <div className="flex items-center gap-1.5 mb-1 font-mono text-[9px] text-neutral-500">
-        <span className="uppercase font-semibold text-neutral-400">{isUser ? 'USER' : 'VORTEXIS'}</span>
-        <span>•</span>
+      <div className={`vortexis-message-row ${isUser ? 'vortexis-message-row-user' : 'vortexis-message-row-agent'}`}>
+      <div className="vortexis-message-meta">
+        <span>{isUser ? 'You' : 'VORTEXIS'}</span>
         <span>{message.timestamp}</span>
       </div>
 
       <div
-        className={`w-full max-w-[95%] rounded-md p-3 text-xs shadow-none border overflow-hidden ${
+        className={`vortexis-message-content ${
           isUser
-            ? 'bg-neutral-900 border-neutral-800 text-neutral-100 self-end'
-            : 'bg-black border-neutral-800 text-neutral-200 self-start'
+            ? 'vortexis-user-bubble text-neutral-100'
+            : 'vortexis-agent-content text-neutral-200'
         }`}
       >
         {/* Message Content */}
@@ -69,11 +68,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
         {/* Attachments rendering */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-neutral-800 space-y-1.5">
-            <span className="text-[10px] text-neutral-500 font-mono block">ATTACHED_FILES:</span>
+          <div className="vortexis-attachments">
             <div className="flex flex-wrap gap-1.5">
               {message.attachments.map((att) => (
-                <div key={att.id} className="bg-neutral-950 border border-neutral-800 px-2 py-1 rounded text-[10px] font-mono text-neutral-300">
+                <div key={att.id} className="vortexis-attachment-chip">
                   {att.name} ({(att.size / 1024).toFixed(1)} KB)
                 </div>
               ))}
