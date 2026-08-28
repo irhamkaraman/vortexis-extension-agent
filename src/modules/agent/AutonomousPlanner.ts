@@ -9,6 +9,7 @@ import { UNIVERSAL_AGENT_SYSTEM_PROMPT } from '../ai/PromptTemplates';
 import type { ChatCompletionContentPartText, ChatCompletionContentPartImage } from 'openai/resources/chat';
 
 const MAX_IMAGE_BASE64_BYTES = 20 * 1024 * 1024;
+const STREAM_TIMEOUT_MS = 45_000;
 
 const OVERLAY_STATUSES: Record<string, string> = {
   capturing: 'Sedang screenshot — halaman tetap bisa diklik',
@@ -91,7 +92,7 @@ export class AutonomousPlanner {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         }, { isExecutingTool: false, statusText: 'Menganalisis permintaan...' });
 
-        const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments, (statusText) => {
+      const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(conversationTurns, imageAttachments, shouldStop, (statusText) => {
           onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText, isExecutingTool: false });
         });
 
@@ -291,6 +292,7 @@ export class AutonomousPlanner {
   private async getSenseNovaDecision(
     chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
     imageAttachments: { content: string; type: string; name: string }[],
+    shouldStop: () => boolean,
     onStreamStatus?: (statusText: string) => void
   ): Promise<UniversalResponseFormat> {
     try {
@@ -339,22 +341,47 @@ export class AutonomousPlanner {
         });
       }
 
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), STREAM_TIMEOUT_MS);
+      const stopPollId = setInterval(() => {
+        if (shouldStop()) abortController.abort();
+      }, 250);
       requestBody.stream = true;
       onStreamStatus?.('Menerima respons AI...');
-      const response = await this.openai.chat.completions.create(requestBody as any);
-      let rawContent = '';
-      if (this.isAsyncIterable(response)) {
-        for await (const chunk of response as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>) {
-          const delta = chunk.choices?.[0]?.delta?.content || '';
-          if (delta) rawContent += delta;
-          if (rawContent.length % 80 < delta.length) onStreamStatus?.('Menyiapkan jawaban...');
+      try {
+        const response = await this.openai.chat.completions.create(requestBody as any, { signal: abortController.signal });
+        let rawContent = '';
+        if (this.isAsyncIterable(response)) {
+          for await (const chunk of response as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>) {
+            if (shouldStop()) {
+              abortController.abort();
+              throw new Error('Eksekusi dihentikan oleh pengguna.');
+            }
+            const delta = chunk.choices?.[0]?.delta?.content || '';
+            if (delta) rawContent += delta;
+            if (rawContent.length % 80 < delta.length) onStreamStatus?.('Menyiapkan jawaban...');
+          }
+        } else {
+          rawContent = response.choices[0]?.message?.content || '';
         }
-      } else {
-        rawContent = response.choices[0]?.message?.content || '';
+        return ActionParser.parseUniversalAgentResponse(rawContent);
+      } finally {
+        clearTimeout(timeoutId);
+        clearInterval(stopPollId);
       }
-      return ActionParser.parseUniversalAgentResponse(rawContent);
     } catch (err: any) {
       const errorMsg = err.message || String(err);
+      if (shouldStop()) throw new Error('Eksekusi dihentikan oleh pengguna.');
+      if (errorMsg.includes('aborted') || errorMsg.includes('abort') || errorMsg.includes('timeout')) {
+        onStreamStatus?.('Mode kompatibilitas aktif...');
+        const fallbackResponse = await this.openai.chat.completions.create({
+          model: this.modelName,
+          messages: chatHistory,
+          temperature: 0.2,
+        } as any);
+        const fallbackContent = fallbackResponse.choices[0]?.message?.content || '';
+        return ActionParser.parseUniversalAgentResponse(fallbackContent);
+      }
       if (errorMsg.includes('image') || errorMsg.includes('vision') || errorMsg.includes('multimodal')) {
         console.error('[AutonomousPlanner] Vision not supported by model:', this.modelName);
         const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
