@@ -57,7 +57,8 @@ export class AutonomousPlanner {
     onStepUpdate: (message: ChatMessage, extraState?: { isExecutingTool?: boolean; activeToolName?: string; statusText?: string; streamingComplete?: boolean }) => void,
     shouldStop: () => boolean,
     onRequireApproval?: (actionDesc: string, onApprove: () => void, onReject: () => void) => void,
-    maxIterations: number = 12
+    maxIterations: number = 12,
+    reasoningEffort: 'none' | 'low' | 'medium' | 'high' = 'medium'
   ): Promise<void> {
     const imageAttachments = historyMessages
       .filter((m) => m.attachments && m.attachments.length > 0)
@@ -104,9 +105,9 @@ export class AutonomousPlanner {
       const turnResponse: UniversalResponseFormat = await this.getSenseNovaDecision(userGoal, conversationTurns, imageAttachments, shouldStop, (statusText) => {
            onStepUpdate({ id: stepMsgId, role: 'assistant', content: '', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { statusText, isExecutingTool: false });
          }, (partialText) => {
-           streamedAnswer = partialText;
-           onStepUpdate({ id: stepMsgId, role: 'assistant', content: partialText, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { isExecutingTool: false });
-         });
+            streamedAnswer = partialText;
+            onStepUpdate({ id: stepMsgId, role: 'assistant', content: partialText, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, { isExecutingTool: false });
+          }, reasoningEffort);
 
         // A tool-call turn is an internal activity step, not a user-facing answer.
         // Only the no-tool turn becomes the final response bubble.
@@ -316,8 +317,9 @@ export class AutonomousPlanner {
     chatHistory: { role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }[],
     imageAttachments: { content: string; type: string; name: string }[],
     shouldStop: () => boolean,
-     onStreamStatus?: (statusText: string) => void,
-     onStreamText?: (partialText: string) => void,
+    onStreamStatus?: (statusText: string) => void,
+    onStreamText?: (partialText: string) => void,
+    reasoningEffort: 'none' | 'low' | 'medium' | 'high' = 'medium',
   ): Promise<UniversalResponseFormat> {
     const needsTools = this.requestNeedsBrowserTools(userGoal);
     const requestTimeout = needsTools ? STREAM_TIMEOUT_MS : CASUAL_STREAM_TIMEOUT_MS;
@@ -331,7 +333,7 @@ export class AutonomousPlanner {
         model: this.modelName,
         messages,
         temperature: 0.2,
-        reasoning_effort: 'medium',
+         reasoning_effort: reasoningEffort,
       };
       if (needsTools) {
         requestBody.tools = getNativeToolDefinitions();

@@ -7,12 +7,16 @@ interface ChatInputProps {
   onSendMessage: (text: string, attachments: FileAttachment[]) => void;
   onStop: () => void;
   isBusy: boolean;
+  reasoningEffort: 'none' | 'low' | 'medium' | 'high';
+  onReasoningEffortChange: (effort: 'none' | 'low' | 'medium' | 'high') => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   onStop,
   isBusy,
+  reasoningEffort,
+  onReasoningEffortChange,
 }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -135,16 +139,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           className="hidden"
         />
 
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isBusy}
-          className="vortexis-prompt-attach"
-          title="Attach files (Images, CSV, JSON, Code, PDF)"
-        >
-          <Paperclip className="w-4 h-4" strokeWidth={1.5} />
-        </button>
-
         <textarea
           ref={textareaRef}
           value={input}
@@ -161,6 +155,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isBusy} className="vortexis-prompt-tool" title="Lampirkan file">
             <Paperclip className="w-4 h-4" strokeWidth={1.6} />
           </button>
+          <div className="vortexis-prompt-toolbar-spacer" />
+          <select value={reasoningEffort} onChange={(e) => onReasoningEffortChange(e.target.value as typeof reasoningEffort)} disabled={isBusy} className="vortexis-thinking-select" aria-label="Pilih mode thinking">
+            <option value="none">Thinking off</option><option value="low">Thinking low</option><option value="medium">Thinking medium</option><option value="high">Thinking high</option>
+          </select>
           {isBusy ? (
             <button type="button" onClick={onStop} className="vortexis-prompt-submit is-stop" title="Hentikan eksekusi"><Square className="w-3.5 h-3.5 fill-current" /><span>STOP</span></button>
           ) : (

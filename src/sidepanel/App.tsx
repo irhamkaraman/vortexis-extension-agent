@@ -23,6 +23,7 @@ export const App: React.FC = () => {
   const [activeToolName, setActiveToolName] = useState<string>('');
   const [statusText, setStatusText] = useState<string>('Menyiapkan jawaban...');
   const [activity, setActivity] = useState<AgentActivityState>({ isActive: false, statusText: '', steps: [] });
+  const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium');
 
   useEffect(() => {
     if (!isThinking) return;
@@ -165,7 +166,8 @@ export const App: React.FC = () => {
             },
           });
         },
-        12
+         12,
+         reasoningEffort
       );
     } catch (err: any) {
       const errorMsg: ChatMessage = {
@@ -288,6 +290,8 @@ export const App: React.FC = () => {
         onSendMessage={handleSendMessage}
         onStop={handleStop}
         isBusy={isBusy}
+        reasoningEffort={reasoningEffort}
+        onReasoningEffortChange={setReasoningEffort}
       />
     </div>
   );
