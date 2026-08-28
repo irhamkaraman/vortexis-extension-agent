@@ -78,6 +78,10 @@ export class AutonomousPlanner {
       : historyMessages;
 
     const conversationTurns: { role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }[] = [
+      {
+        role: 'system',
+        content: `PRIMARY USER GOAL: "${userGoal}". Your mission is strictly to accomplish this goal in the fewest steps possible. Stop immediately with your final answer as soon as you have the needed information or completed the action.`,
+      },
       ...trimmedHistory.map((m) => ({
         role: m.role,
         content: m.content || (m.toolCall ? `Executed tool: ${m.toolCall.name}` : ''),

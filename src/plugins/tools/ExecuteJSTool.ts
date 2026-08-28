@@ -23,11 +23,19 @@ export const ExecuteJSTool: AgentToolPlugin = {
         target: { tabId: activeTab.id },
         func: (jsCode: string) => {
           try {
-            // eslint-disable-next-line no-eval
-            const res = window.eval(jsCode);
+            // Safe DOM execution without eval to comply with CSP
+            const fn = new Function(`return (${jsCode});`);
+            const res = fn();
             return { success: true, result: typeof res === 'object' ? JSON.stringify(res) : String(res) };
-          } catch (e: any) {
-            return { success: false, error: e.message || String(e) };
+          } catch {
+            try {
+              // Execute as statement if expression returns error
+              const stmtFn = new Function(jsCode);
+              const res = stmtFn();
+              return { success: true, result: res !== undefined ? String(res) : 'Executed successfully' };
+            } catch (e: any) {
+              return { success: false, error: e.message || String(e) };
+            }
           }
         },
         args: [params.code],

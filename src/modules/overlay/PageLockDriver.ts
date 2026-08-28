@@ -24,35 +24,20 @@ export class PageLockDriver {
       frame.id = 'vortexis-page-lock-frame';
       frame.style.cssText = `
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 2147483646; pointer-events: none !important;
+        z-index: 2147483646; pointer-events: all !important;
+        cursor: wait !important;
         overflow: visible;
-        box-shadow: inset 0 0 0 4px rgba(100,116,139,0.35),
-                    inset 0 0 60px 12px rgba(100,116,139,0.12),
-                    inset 0 0 120px 30px rgba(100,116,139,0.06);
-        background: linear-gradient(180deg,
-          rgba(15,23,42,0.05) 0%,
-          rgba(15,23,42,0.08) 50%,
-          rgba(15,23,42,0.05) 100%);
-        transition: opacity 0.4s ease, box-shadow 0.4s ease;
+        box-shadow: inset 0 0 0 4px rgba(99,102,241,0.5),
+                    inset 0 0 60px 12px rgba(99,102,241,0.15);
+        background: rgba(15,23,42,0.15);
+        backdrop-filter: blur(1px);
+        transition: opacity 0.3s ease;
         opacity: 0;
       `;
       document.body!.appendChild(frame);
-      frame.style.setProperty('pointer-events', 'none', 'important');
-
-      const inner = document.createElement('div');
-      inner.id = 'vortexis-page-lock-inner';
-      inner.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 2147483646; pointer-events: none;
-        transition: opacity 0.4s ease;
-        opacity: 0;
-      `;
-      document.body!.appendChild(inner);
-      inner.style.setProperty('pointer-events', 'none', 'important');
 
       requestAnimationFrame(() => {
         (frame as HTMLDivElement).style.opacity = '1';
-        (inner as HTMLDivElement).style.opacity = '1';
         resolve(true);
       });
     });
