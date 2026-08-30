@@ -45,14 +45,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
   // -------------------------------------------------------------
   if (isIntermediate) {
     return (
-      <div className="vortexis-message-row vortexis-message-row-agent !mt-1 !mb-1 opacity-90">
-        <div className="w-full flex flex-col gap-1.5 pl-2">
+      <div className="vortexis-message-row vortexis-message-row-agent !mt-0 !mb-0 opacity-90">
+        <div className="w-full flex flex-col pl-4 border-l-2 border-zinc-800 ml-4 py-1" style={{ background: 'linear-gradient(to bottom, #111111, transparent)' }}>
           {message.thinkingContent && (
-            <div className="vortexis-thinking-section">
+            <div className="vortexis-thinking-section !mb-0">
               <button type="button" className="vortexis-thinking-toggle-btn" onClick={() => setThinkingOpen((v) => !v)}>
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" strokeWidth={1.5} />
+                <Sparkles className="w-3.5 h-3.5 text-yellow-500" strokeWidth={1.5} />
                 <span className="vortexis-thinking-toggle-label">{thinkingOpen ? 'Menyembunyikan proses berpikir' : 'Tampilkan proses berpikir'}</span>
-                {thinkingOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                {thinkingOpen ? <ChevronDown className="w-3.5 h-3.5 text-zinc-500" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />}
               </button>
               {thinkingOpen && (
                 <div className="vortexis-thinking-content">
@@ -65,9 +65,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
           )}
           
           {message.toolResult && (
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 pl-3 py-1 ml-1.5 border-l border-slate-700/50">
-               <ChevronRight className="w-3 h-3 text-cyan-600" />
-               <span className="font-mono text-cyan-400/80">{message.toolCall?.name || 'Executed Tool'}</span>
+            <div className="flex items-center gap-2 text-[12px] text-zinc-400 pl-2 py-1 mt-1">
+               <ChevronRight className="w-3 h-3 text-yellow-600" />
+               <span className="font-mono text-yellow-500/80">{message.toolCall?.name || 'Executed Tool'}</span>
                <span className="opacity-60">{message.toolResult.success ? 'berhasil diselesaikan' : `gagal: ${message.toolResult.error || message.toolResult.warningMessage}`}</span>
             </div>
           )}
@@ -97,9 +97,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
         {!isUser && message.thinkingContent && (
           <div className="vortexis-thinking-section">
             <button type="button" className="vortexis-thinking-toggle-btn" onClick={() => setThinkingOpen((v) => !v)}>
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" strokeWidth={1.5} />
+              <Sparkles className="w-3.5 h-3.5 text-yellow-500" strokeWidth={1.5} />
               <span className="vortexis-thinking-toggle-label">{thinkingOpen ? 'Menyembunyikan proses berpikir' : 'Tampilkan proses berpikir'}</span>
-              {thinkingOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+              {thinkingOpen ? <ChevronDown className="w-3.5 h-3.5 text-zinc-500" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />}
             </button>
             {thinkingOpen && (
               <div className="vortexis-thinking-content">

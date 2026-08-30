@@ -300,16 +300,16 @@
 .vortexis-agent-content table { width: 100%; border-collapse: collapse; font-size: .9em; }.vortexis-agent-content th,.vortexis-agent-content td { padding: 6px 8px; border: 1px solid rgba(148,163,184,.2); text-align: left; }.vortexis-agent-content th { color: #e6f7ff; background: rgba(85,214,255,.1); }
 
 /* Gemini-style thinking section */
-.vortexis-thinking-section { margin-bottom: .65em; }
-.vortexis-thinking-toggle-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; color: #94a3b8; background: rgba(85,214,255,.06); border: 1px solid rgba(85,214,255,.12); border-radius: 8px; font: 11px/1.4 system-ui, sans-serif; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
-.vortexis-thinking-toggle-btn:hover { background: rgba(85,214,255,.12); color: #c8e6ff; border-color: rgba(85,214,255,.25); }
-.vortexis-thinking-toggle-label { color: #8ab4c8; font-weight: 500; }
-.vortexis-thinking-content { margin-top: 6px; padding: 8px 12px; color: #7f93a7; background: rgba(15, 23, 42, 0.4); border-left: 2px solid rgba(85,214,255,.2); border-radius: 0 8px 8px 0; font: 11px/1.6 system-ui, sans-serif; max-height: 280px; overflow-y: auto; transition: opacity 0.2s ease; }
-.vortexis-thinking-line { margin: 0 0 4px; color: #71879c; opacity: 0.85; }
+.vortexis-thinking-section { margin-bottom: 0; }
+.vortexis-thinking-toggle-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; color: #a1a1aa; background: transparent; border: 0; cursor: pointer; transition: color .15s; font-size: 13px; font-family: 'Outfit', sans-serif; }
+.vortexis-thinking-toggle-btn:hover { color: #f4f4f5; }
+.vortexis-thinking-toggle-label { color: #a1a1aa; font-weight: 500; }
+.vortexis-thinking-content { margin-top: 4px; padding: 4px 8px; color: #71717a; background: transparent; border: 0; font: 12px/1.6 'Outfit', sans-serif; max-height: 280px; overflow-y: auto; transition: opacity 0.2s ease; }
+.vortexis-thinking-line { margin: 0 0 4px; color: #71717a; opacity: 0.85; }
 .vortexis-thinking-line:last-child { margin-bottom: 0; }
 .vortexis-thinking-content::-webkit-scrollbar { width: 4px; }
 .vortexis-thinking-content::-webkit-scrollbar-track { background: transparent; }
-.vortexis-thinking-content::-webkit-scrollbar-thumb { background: rgba(85,214,255,.2); border-radius: 4px; }
+.vortexis-thinking-content::-webkit-scrollbar-thumb { background: rgba(250,204,21,.2); border-radius: 4px; }
 /* Activity Timeline (persistent tool execution view) */
 .vortexis-activity-timeline-root { margin: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); border: 1px solid rgba(250, 204, 21, 0.2); border-radius: 10px; padding: 6px 12px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); }
 .vortexis-activity-timeline-header { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 4px 0; color: #a1a1aa; background: transparent; border: 0; cursor: pointer; font: 13px/1.4 'Outfit', sans-serif; transition: color .15s; }
