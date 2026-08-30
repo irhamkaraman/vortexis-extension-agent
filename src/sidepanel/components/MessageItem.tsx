@@ -82,10 +82,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
           )}
           
           {message.toolResult && (
-            <div className="flex items-center gap-2 text-[12px] text-zinc-400 py-1 mt-1 ml-[12px] pl-[12px] border-l-2 border-zinc-800">
-               <ChevronRight className="w-3 h-3 text-yellow-600" />
-               <span className="font-mono text-yellow-500/80">{message.toolCall?.name || 'Executed Tool'}</span>
-               <span className="opacity-60">{message.toolResult.success ? 'berhasil diselesaikan' : `gagal: ${message.toolResult.error || message.toolResult.warningMessage}`}</span>
+            <div className="flex flex-col gap-1 text-[12px] text-zinc-400 py-1 mt-1 ml-[12px] pl-[12px] border-l-2 border-zinc-800">
+               <div className="flex items-center gap-2">
+                 <ChevronRight className="w-3 h-3 text-yellow-600" />
+                 <span className="font-mono text-yellow-500/80">{message.toolCall?.name || 'Executed Tool'}</span>
+               </div>
+               <span className={`opacity-80 ml-5 leading-snug ${message.toolResult.success ? 'text-zinc-500' : 'text-red-400/90'}`}>
+                 {message.toolResult.success ? 'berhasil diselesaikan' : `gagal: ${message.toolResult.error || message.toolResult.warningMessage}`}
+               </span>
             </div>
           )}
         </div>
