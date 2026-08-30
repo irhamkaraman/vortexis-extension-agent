@@ -26,7 +26,7 @@ export class SelfHealingDriver {
         return lastResult;
       }
 
-      console.warn(`[SelfHealingDriver] Action ${toolName} failed on attempt ${attempt + 1}: ${lastResult.error}. Initiating self-healing recovery...`);
+      console.log(`[SelfHealingDriver] Action ${toolName} failed on attempt ${attempt + 1}: ${lastResult.error}. Initiating self-healing recovery...`);
 
       attempt++;
       if (attempt <= maxRetries) {

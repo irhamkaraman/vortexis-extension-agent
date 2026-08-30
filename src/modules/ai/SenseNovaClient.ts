@@ -50,7 +50,7 @@ export class SenseNovaClient {
       const rawContent = response.choices[0]?.message?.content || '';
       return ActionParser.parseChatResponse(rawContent);
     } catch (err: any) {
-      console.error('[SenseNovaClient] Error generating chat response:', err);
+      console.log('[SenseNovaClient] Error generating chat response:', err);
       throw new Error(`SenseNova API Error: ${err.message || String(err)}`);
     }
   }

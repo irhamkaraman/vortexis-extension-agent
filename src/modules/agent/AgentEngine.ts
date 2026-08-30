@@ -34,7 +34,7 @@ export class AgentEngine {
       const rawContent = response.choices[0]?.message?.content || '';
       return ActionParser.parseChatResponse(rawContent);
     } catch (err: any) {
-      console.error('[AgentEngine] SenseNova API Turn Error:', err);
+      console.log('[AgentEngine] SenseNova API Turn Error:', err);
       throw new Error(`SenseNova API Error: ${err.message || String(err)}`);
     }
   }

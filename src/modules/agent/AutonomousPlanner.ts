@@ -477,7 +477,7 @@ export class AutonomousPlanner {
         throw new Error(`SenseNova tidak merespons dalam ${Math.round(requestTimeout / 1000)} detik. Periksa koneksi internet, status endpoint, atau API key.`);
       }
       if (errorMsg.includes('image') || errorMsg.includes('vision') || errorMsg.includes('multimodal')) {
-        console.error('[AutonomousPlanner] Vision not supported by model:', this.modelName);
+        console.log('[AutonomousPlanner] Vision not supported by model:', this.modelName);
         const messages: Array<{ role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }> = [
           { role: 'system', content: UNIVERSAL_AGENT_SYSTEM_PROMPT },
           ...chatHistory,
@@ -497,7 +497,7 @@ export class AutonomousPlanner {
         return ActionParser.parseUniversalAgentResponse(rawContent);
       }
 
-      console.error('[AutonomousPlanner] AI Decision Error:', err);
+      console.log('[AutonomousPlanner] AI Decision Error:', err);
       throw new Error(`AI Provider API Error: ${err.message || String(err)}`);
     }
   }
