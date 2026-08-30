@@ -5,7 +5,6 @@ import { MessageItem } from './components/MessageItem';
 import { MinimalHeader } from './components/MinimalHeader';
 import { PermissionModal } from './components/PermissionModal';
 import { TradeApprovalCard } from './components/TradeApprovalCard';
-import { AgentActivityTimeline } from './components/AgentActivityTimeline';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -100,15 +99,6 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
             <MessageItem key={msg.id} message={msg} isStreaming={isThinking && idx === messages.length - 1 && msg.role === 'assistant'} />
           ))
         )}
-
-        {/* Persistent Activity Timeline — shows tool execution steps */}
-        <AgentActivityTimeline
-          activity={activity}
-          isExecutingTool={isExecutingTool}
-          activeToolName={activeToolName}
-          statusText={statusText}
-          isThinking={isThinking}
-        />
 
         <div ref={bottomRef} />
       </div>

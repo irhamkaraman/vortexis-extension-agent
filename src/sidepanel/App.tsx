@@ -7,6 +7,7 @@ import { ToolRegistry } from '../modules/agent/ToolRegistry';
 import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
 import { ChatPanelContainer } from './ChatPanel';
 import { ChatInput } from './components/ChatInput';
+import { AgentActivityTimeline } from './components/AgentActivityTimeline';
 import { sanitizeToolParameters, summarizeToolResult } from '../modules/agent/ActivityUtils';
 import { AVAILABLE_MODELS } from '../core/types/models';
 
@@ -284,17 +285,29 @@ export const App: React.FC = () => {
         onClearChat={handleClearChat}
         onEmergencyStop={handleStop}
          pendingTradeApproval={pendingTradeApproval}
-         activity={activity}
+        activity={activity}
       />
-      <ChatInput
-        onSendMessage={handleSendMessage}
-        onStop={handleStop}
-        isBusy={isBusy}
-        reasoningEffort={reasoningEffort}
-        onReasoningEffortChange={setReasoningEffort}
-        selectedModelId={selectedModelId}
-        onModelChange={handleModelChange}
-      />
+      <div className="relative px-3 w-full">
+        {/* Floating Activity Timeline */}
+        <div className="absolute bottom-full left-0 right-0 px-3 pb-3 z-10">
+          <AgentActivityTimeline
+            activity={activity}
+            isExecutingTool={isExecutingTool}
+            activeToolName={activeToolName}
+            statusText={statusText}
+            isThinking={isThinking}
+          />
+        </div>
+        <ChatInput
+          onSendMessage={handleSendMessage}
+          onStop={handleStop}
+          isBusy={isBusy}
+          reasoningEffort={reasoningEffort}
+          onReasoningEffortChange={setReasoningEffort}
+          selectedModelId={selectedModelId}
+          onModelChange={handleModelChange}
+        />
+      </div>
     </div>
   );
 };
