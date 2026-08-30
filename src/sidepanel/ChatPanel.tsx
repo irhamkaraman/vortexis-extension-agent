@@ -85,7 +85,7 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
       <div className="vortexis-message-stream flex-1 overflow-y-auto px-3 py-3 space-y-2 w-full max-w-full overflow-x-hidden">
         {messages.length === 0 && !isThinking ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-neutral-500 p-6 space-y-4 font-mono">
-            <div className="vortexis-welcome-mark"><Terminal className="w-5 h-5" strokeWidth={1.5} /></div>
+            <img src="/icon128.png" alt="Vortexis" className="w-16 h-16 rounded-[14px] shadow-lg shadow-yellow-500/20" />
             <div>
               <h3 className="vortexis-welcome-title">Halo, bos</h3>
               <p className="vortexis-welcome-subtitle">Apa yang ingin kita kerjakan hari ini?</p>

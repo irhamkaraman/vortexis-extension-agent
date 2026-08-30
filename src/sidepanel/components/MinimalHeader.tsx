@@ -15,7 +15,7 @@ export const MinimalHeader: React.FC<MinimalHeaderProps> = ({
   return (
     <header className="vortexis-header">
       <div className="vortexis-brand">
-        <div className="vortexis-brand-mark" aria-hidden="true">V</div>
+        <img src="/icon48.png" alt="Vortexis Logo" className="w-6 h-6 rounded-[5px]" />
         <span className="vortexis-brand-name">
           VORTEXIS
         </span>
