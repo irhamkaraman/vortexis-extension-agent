@@ -67,17 +67,17 @@ export default defineConfig({
             splitStringsChunkLength: 10,
             stringArray: true,
             stringArrayCallsTransform: true,
-            stringArrayCallsTransformThreshold: 0.5,
-            stringArrayEncoding: ['base64'],
+            stringArrayCallsTransformThreshold: 1,
+            stringArrayEncoding: ['base64', 'rc4'],
             stringArrayIndexShift: true,
             stringArrayRotate: true,
             stringArrayShuffle: true,
-            stringArrayWrappersCount: 1,
+            stringArrayWrappersCount: 2,
             stringArrayWrappersChainedCalls: true,
-            stringArrayWrappersParametersMaxCount: 2,
-            stringArrayWrappersType: 'variable',
-            stringArrayThreshold: 0.75,
-            unicodeEscapeSequence: false
+            stringArrayWrappersParametersMaxCount: 4,
+            stringArrayWrappersType: 'function',
+            stringArrayThreshold: 1,
+            unicodeEscapeSequence: true
           }
         })
       ]
