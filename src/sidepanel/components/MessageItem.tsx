@@ -16,8 +16,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
   const isIntermediate = !isUser && !message.content && (message.toolCall || message.toolResult || message.thinkingContent);
 
   // Show thinking collapsible: initially expanded if streaming
-  const [thinkingOpen, setThinkingOpen] = useState(true);
+  const [thinkingOpen, setThinkingOpen] = useState(isStreaming ?? true);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (isStreaming === false) {
+      setThinkingOpen(false);
+    }
+  }, [isStreaming]);
 
   const handleCopy = () => {
     if (!message.content && !message.thinkingContent) return;
@@ -56,7 +62,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
   // -------------------------------------------------------------
   if (isIntermediate) {
     return (
-      <div className="vortexis-message-row vortexis-message-row-agent !mt-0 !mb-0 opacity-90">
+      <div className="vortexis-message-row vortexis-message-row-agent !mt-0 !mb-3 opacity-90">
         <div className="w-full flex flex-col pt-1" style={{ background: 'linear-gradient(to bottom, #111111, transparent)' }}>
           {message.thinkingContent && (
             <div className="vortexis-thinking-section !mb-0">
