@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { defineConfig, type Plugin } from 'vite';
 import fs from 'fs';
-import obfuscator from 'rollup-plugin-obfuscator';
+import { obfuscator } from 'rollup-plugin-obfuscator';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
