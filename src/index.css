@@ -181,7 +181,7 @@
 .vortexis-message-meta {
   display: flex;
   gap: 8px;
-  margin: 0 3px 6px;
+  margin: 14px 3px 6px;
   color: #71717a;
   font: 11px/1.2 ui-monospace, monospace;
   letter-spacing: .02em;
@@ -198,6 +198,7 @@
 .vortexis-agent-content { padding: 0 3px; }
 .vortexis-user-bubble {
   padding: 10px 14px;
+  margin-bottom: 4px;
   border-radius: 16px 16px 4px 16px;
   background: rgba(255,255,255,.065);
   box-shadow: inset 0 1px rgba(255,255,255,.035);
@@ -305,7 +306,7 @@
 .vortexis-agent-content table { width: 100%; border-collapse: collapse; font-size: .9em; }.vortexis-agent-content th,.vortexis-agent-content td { padding: 6px 8px; border: 1px solid rgba(148,163,184,.2); text-align: left; }.vortexis-agent-content th { color: #e6f7ff; background: rgba(85,214,255,.1); }
 
 /* Gemini-style thinking section */
-.vortexis-thinking-section { margin-bottom: 16px; }
+.vortexis-thinking-section { margin-bottom: 20px; }
 .vortexis-thinking-toggle-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; color: #a1a1aa; background: transparent; border: 0; cursor: pointer; transition: color .15s; font-size: 13px; font-family: 'Outfit', sans-serif; }
 .vortexis-thinking-toggle-btn:hover { color: #f4f4f5; }
 .vortexis-thinking-toggle-label { color: #a1a1aa; font-weight: 500; }
