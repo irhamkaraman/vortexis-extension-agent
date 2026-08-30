@@ -166,7 +166,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
       </div>
       
       {/* Metadata moved to bottom */}
-      <div className="vortexis-message-meta mt-1.5 opacity-60">
+      <div className="vortexis-message-meta mt-4 opacity-60">
         <span>{isUser ? 'You' : 'VORTEXIS'}</span>
         <span>{message.timestamp}</span>
         {!isUser && (
