@@ -253,9 +253,10 @@ export const App: React.FC = () => {
     setIsBusy(false);
     setIsExecutingTool(false);
     setActiveToolName('');
-        setStatusText('Menyiapkan jawaban...');
+    setStatusText('Thinking...');
     setPendingTradeApproval(null);
     setActivity({ isActive: false, statusText: '', steps: [] });
+    toolExecutor.destroyOverlay().catch(() => {});
   };
 
   const handleStop = () => {
@@ -266,9 +267,10 @@ export const App: React.FC = () => {
     setIsThinking(false);
     setIsExecutingTool(false);
     setActiveToolName('');
-    setStatusText('Menyiapkan jawaban...');
+    setStatusText('Thinking...');
     setPendingTradeApproval(null);
     setActivity({ isActive: false, statusText: '', steps: [] });
+    toolExecutor.destroyOverlay().catch(() => {});
   };
 
   return (

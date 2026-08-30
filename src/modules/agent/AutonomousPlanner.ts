@@ -315,10 +315,13 @@ export class AutonomousPlanner {
         await new Promise((r) => setTimeout(r, 300));
       }
       } finally {
-        if (this.overlayEnabled) {
+        try {
           await this.toolExecutor.disableOverlay();
           await this.toolExecutor.removeOverlayStatus();
-        }
+          await this.toolExecutor.hideGrid();
+          await this.toolExecutor.hideCursor();
+          this.overlayEnabled = false;
+        } catch { /* ignore tab close errors */ }
       }
   }
 
