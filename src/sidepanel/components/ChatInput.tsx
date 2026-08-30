@@ -176,10 +176,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             ))}
           </select>
           <select value={reasoningEffort} onChange={(e) => onReasoningEffortChange(e.target.value as typeof reasoningEffort)} disabled={isBusy} className="vortexis-thinking-select" aria-label="Pilih mode thinking">
-            <option value="none">Thinking off</option><option value="low">Thinking low</option><option value="medium">Thinking medium</option><option value="high">Thinking high</option>
+            <option value="none">none</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
           </select>
           {isBusy ? (
-            <button type="button" onClick={onStop} className="vortexis-prompt-submit is-stop" title="Hentikan eksekusi"><Square className="w-3.5 h-3.5 fill-current" /><span>STOP</span></button>
+            <button type="button" onClick={onStop} className="vortexis-prompt-submit is-stop" title="Hentikan eksekusi"><Square className="w-4 h-4 fill-current" /></button>
           ) : (
             <button type="submit" disabled={!input.trim() && attachments.length === 0} className="vortexis-prompt-submit" title="Kirim instruksi"><Send className="w-4 h-4" strokeWidth={1.8} /></button>
           )}
