@@ -120,13 +120,13 @@ export const AgentActivityTimeline: React.FC<AgentActivityTimelineProps> = ({
             <Check className="w-3 h-3 text-emerald-400" />
           )}
           <span className="vortexis-activity-timeline-label">
-            {isThinking ? liveStatus : `Selesai — ${completedCount} langkah`}
+            {isThinking ? 'Thinking' : `Selesai — ${completedCount} langkah`}
           </span>
         </div>
         <div className="vortexis-activity-timeline-meta">
           {errorCount > 0 && <span className="vortexis-activity-badge-error">{errorCount} gagal</span>}
           {toolSteps.length > 0 && <span className="vortexis-activity-badge-count">{completedCount + activeCount}/{toolSteps.length}</span>}
-          {isOpen ? <ChevronDown className="w-3 h-3 text-slate-500" /> : <ChevronRight className="w-3 h-3 text-slate-500" />}
+          {isOpen ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
         </div>
       </button>
 

@@ -288,8 +288,8 @@ export const App: React.FC = () => {
         activity={activity}
       />
       <div className="relative px-3 w-full">
-        {/* Floating Activity Timeline */}
-        <div className="absolute bottom-full left-0 right-0 px-3 pb-3 z-10">
+        {/* Activity Timeline (Attached to ChatInput, NOT floating) */}
+        <div className="w-full relative z-10 px-1">
           <AgentActivityTimeline
             activity={activity}
             isExecutingTool={isExecutingTool}

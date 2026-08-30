@@ -311,7 +311,7 @@
 .vortexis-thinking-content::-webkit-scrollbar-track { background: transparent; }
 .vortexis-thinking-content::-webkit-scrollbar-thumb { background: rgba(250,204,21,.2); border-radius: 4px; }
 /* Activity Timeline (persistent tool execution view) */
-.vortexis-activity-timeline-root { margin: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); border: 1px solid rgba(250, 204, 21, 0.2); border-radius: 10px; padding: 6px 12px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); }
+.vortexis-activity-timeline-root { margin: 0; padding: 4px 6px; }
 .vortexis-activity-timeline-header { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 4px 0; color: #a1a1aa; background: transparent; border: 0; cursor: pointer; font: 13px/1.4 'Outfit', sans-serif; transition: color .15s; }
 .vortexis-activity-timeline-header:hover { color: #f4f4f5; }
 .vortexis-activity-timeline-title { display: flex; align-items: center; gap: 7px; }
