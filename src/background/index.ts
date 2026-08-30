@@ -191,7 +191,7 @@ export class BackgroundToolExecutor {
   public async switchTab(tabId: number): Promise<boolean> {
     try {
       const tab = await chrome.tabs.update(tabId, { active: true });
-      if (tab.windowId) {
+      if (tab?.windowId) {
         await chrome.windows.update(tab.windowId, { focused: true });
       }
       return true;

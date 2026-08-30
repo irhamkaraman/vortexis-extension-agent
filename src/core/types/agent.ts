@@ -141,6 +141,8 @@ export interface SuperAgentToolParams {
   tp?: string;
   tradePlan?: TradeDetails;
   buttonSelector?: string;
+  tabId?: number;
+  extensionId?: string;
 }
 
 export interface UniversalThoughtProcess {
