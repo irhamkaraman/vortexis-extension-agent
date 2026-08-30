@@ -304,7 +304,7 @@
 .vortexis-thinking-toggle-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; color: #a1a1aa; background: transparent; border: 0; cursor: pointer; transition: color .15s; font-size: 13px; font-family: 'Outfit', sans-serif; }
 .vortexis-thinking-toggle-btn:hover { color: #f4f4f5; }
 .vortexis-thinking-toggle-label { color: #a1a1aa; font-weight: 500; }
-.vortexis-thinking-content { margin-top: 4px; padding: 4px 8px; color: #71717a; background: transparent; border: 0; font: 12px/1.6 'Outfit', sans-serif; max-height: 280px; overflow-y: auto; transition: opacity 0.2s ease; }
+.vortexis-thinking-content { margin-top: 4px; padding: 4px 8px 4px 12px; margin-left: 12px; border-left: 2px solid rgba(39, 39, 42, 1); color: #71717a; background: transparent; font: 12px/1.6 'Outfit', sans-serif; max-height: 280px; overflow-y: auto; transition: opacity 0.2s ease; }
 .vortexis-thinking-line { margin: 0 0 4px; color: #71717a; opacity: 0.85; }
 .vortexis-thinking-line:last-child { margin-bottom: 0; }
 .vortexis-thinking-content::-webkit-scrollbar { width: 4px; }

@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, Sparkles, Copy, Check } from 'lucide-react';
 import { ChatMessage } from '../../core/types/agent';
 
 interface MessageItemProps {
@@ -17,6 +17,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
 
   // Show thinking collapsible: initially expanded if streaming
   const [thinkingOpen, setThinkingOpen] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!message.content && !message.thinkingContent) return;
+    let textToCopy = '';
+    if (message.thinkingContent) textToCopy += `[Thinking Process]\n${message.thinkingContent}\n\n`;
+    if (message.content) textToCopy += `[Response]\n${message.content}`;
+    navigator.clipboard.writeText(textToCopy.trim());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Do not render empty AI message container if it's currently streaming in ThinkingIndicator
   if (!isUser && !message.content && !message.toolCall && !message.thinkingContent && !message.toolResult) {
@@ -46,7 +57,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
   if (isIntermediate) {
     return (
       <div className="vortexis-message-row vortexis-message-row-agent !mt-0 !mb-0 opacity-90">
-        <div className="w-full flex flex-col pl-4 border-l-2 border-zinc-800 ml-4 py-1" style={{ background: 'linear-gradient(to bottom, #111111, transparent)' }}>
+        <div className="w-full flex flex-col pt-1" style={{ background: 'linear-gradient(to bottom, #111111, transparent)' }}>
           {message.thinkingContent && (
             <div className="vortexis-thinking-section !mb-0">
               <button type="button" className="vortexis-thinking-toggle-btn" onClick={() => setThinkingOpen((v) => !v)}>
@@ -65,7 +76,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
           )}
           
           {message.toolResult && (
-            <div className="flex items-center gap-2 text-[12px] text-zinc-400 pl-2 py-1 mt-1">
+            <div className="flex items-center gap-2 text-[12px] text-zinc-400 py-1 mt-1 ml-[12px] pl-[12px] border-l-2 border-zinc-800">
                <ChevronRight className="w-3 h-3 text-yellow-600" />
                <span className="font-mono text-yellow-500/80">{message.toolCall?.name || 'Executed Tool'}</span>
                <span className="opacity-60">{message.toolResult.success ? 'berhasil diselesaikan' : `gagal: ${message.toolResult.error || message.toolResult.warningMessage}`}</span>
@@ -81,10 +92,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
   // -------------------------------------------------------------
   return (
       <div className={`vortexis-message-row ${isUser ? 'vortexis-message-row-user' : 'vortexis-message-row-agent'}`}>
-      <div className="vortexis-message-meta">
-        <span>{isUser ? 'You' : 'VORTEXIS'}</span>
-        <span>{message.timestamp}</span>
-      </div>
 
       <div
         className={`vortexis-message-content ${
@@ -155,6 +162,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
                )}
             </div>
           </div>
+        )}
+      </div>
+      
+      {/* Metadata moved to bottom */}
+      <div className="vortexis-message-meta mt-1.5 opacity-60">
+        <span>{isUser ? 'You' : 'VORTEXIS'}</span>
+        <span>{message.timestamp}</span>
+        {!isUser && (
+          <button onClick={handleCopy} className="ml-2 hover:text-yellow-400 transition-colors flex items-center gap-1" title="Salin Pesan">
+            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+          </button>
         )}
       </div>
     </div>
