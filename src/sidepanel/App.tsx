@@ -172,7 +172,7 @@ export const App: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: `LOG_ERROR: ${err.message || String(err)}`,
+        content: `**⚠️ Gagal Memproses Permintaan**\n\nTerjadi kendala saat menghubungi AI Provider atau mengeksekusi aksi. Detail:\n\`\`\`json\n${err.message || String(err)}\n\`\`\``,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);

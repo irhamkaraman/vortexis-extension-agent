@@ -497,8 +497,8 @@ export class AutonomousPlanner {
         return ActionParser.parseUniversalAgentResponse(rawContent);
       }
 
-      console.error('[AutonomousPlanner] SenseNova Decision Error:', err);
-      throw new Error(`SenseNova API Error: ${err.message || String(err)}`);
+      console.error('[AutonomousPlanner] AI Decision Error:', err);
+      throw new Error(`AI Provider API Error: ${err.message || String(err)}`);
     }
   }
 
@@ -548,14 +548,14 @@ export class AutonomousPlanner {
       } catch (error) {
         lastError = error;
         if (signal.aborted || attempt === maxAttempts) throw error;
-        onStreamStatus?.('SenseNova belum merespons — mencoba lagi...');
+        onStreamStatus?.('AI Provider belum merespons — mencoba lagi...');
         await new Promise((resolve) => window.setTimeout(resolve, 350));
       } finally {
         window.clearTimeout(timer);
         signal.removeEventListener('abort', relayAbort);
       }
     }
-    throw lastError instanceof Error ? lastError : new Error('SenseNova stream gagal.');
+    throw lastError instanceof Error ? lastError : new Error('AI Provider stream gagal.');
   }
 
   private async collectSseResponse(
@@ -566,7 +566,7 @@ export class AutonomousPlanner {
     onStreamText?: (partialText: string) => void,
     onStreamThought?: (thoughtText: string) => void,
   ): Promise<NativeDecision> {
-    if (!response.body) throw new Error('SenseNova stream body kosong.');
+    if (!response.body) throw new Error('AI Provider stream body kosong.');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
