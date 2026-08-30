@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Paperclip, Send, Square } from 'lucide-react';
 import { FileAttachment } from '../../core/types/agent';
+import { AVAILABLE_MODELS, ModelOption } from '../../core/types/models';
 import { FileUploadManager } from './FileUploadManager';
 
 interface ChatInputProps {
@@ -9,6 +10,8 @@ interface ChatInputProps {
   isBusy: boolean;
   reasoningEffort: 'none' | 'low' | 'medium' | 'high';
   onReasoningEffortChange: (effort: 'none' | 'low' | 'medium' | 'high') => void;
+  selectedModelId: string;
+  onModelChange: (modelId: string) => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -17,6 +20,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isBusy,
   reasoningEffort,
   onReasoningEffortChange,
+  selectedModelId,
+  onModelChange,
 }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -156,6 +161,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <Paperclip className="w-4 h-4" strokeWidth={1.6} />
           </button>
           <div className="vortexis-prompt-toolbar-spacer" />
+          {/* Model Selector Dropdown */}
+          <select
+            value={selectedModelId}
+            onChange={(e) => onModelChange(e.target.value)}
+            disabled={isBusy}
+            className="vortexis-model-select"
+            aria-label="Pilih model AI"
+          >
+            {AVAILABLE_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
           <select value={reasoningEffort} onChange={(e) => onReasoningEffortChange(e.target.value as typeof reasoningEffort)} disabled={isBusy} className="vortexis-thinking-select" aria-label="Pilih mode thinking">
             <option value="none">Thinking off</option><option value="low">Thinking low</option><option value="medium">Thinking medium</option><option value="high">Thinking high</option>
           </select>

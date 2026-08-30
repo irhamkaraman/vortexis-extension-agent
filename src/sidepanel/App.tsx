@@ -8,6 +8,7 @@ import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
 import { ChatPanelContainer } from './ChatPanel';
 import { ChatInput } from './components/ChatInput';
 import { sanitizeToolParameters, summarizeToolResult } from '../modules/agent/ActivityUtils';
+import { AVAILABLE_MODELS } from '../core/types/models';
 
 const toolExecutor = new BackgroundToolExecutor();
 const ragStore = new BrowserRAGStore();
@@ -24,6 +25,15 @@ export const App: React.FC = () => {
   const [statusText, setStatusText] = useState<string>('Thinking...');
   const [activity, setActivity] = useState<AgentActivityState>({ isActive: false, statusText: '', steps: [] });
   const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium');
+  const [selectedModelId, setSelectedModelId] = useState<string>('sensenova-6.8-flash-lite');
+
+  const handleModelChange = (modelId: string) => {
+    setSelectedModelId(modelId);
+    const targetModel = AVAILABLE_MODELS.find((m) => m.id === modelId);
+    if (targetModel) {
+      autonomousPlanner.setModelConfiguration(targetModel.id, targetModel.baseURL, targetModel.apiKey);
+    }
+  };
 
   // Keep a stable status indicator without rotating/distracting text
   useEffect(() => {
@@ -280,6 +290,8 @@ export const App: React.FC = () => {
         isBusy={isBusy}
         reasoningEffort={reasoningEffort}
         onReasoningEffortChange={setReasoningEffort}
+        selectedModelId={selectedModelId}
+        onModelChange={handleModelChange}
       />
     </div>
   );

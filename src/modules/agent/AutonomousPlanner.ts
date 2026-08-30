@@ -39,7 +39,7 @@ export class AutonomousPlanner {
   private selfHealingDriver: SelfHealingDriver;
   private toolExecutor: BackgroundToolExecutor;
   private modelName: string = 'sensenova-6.8-flash-lite';
-  private hardcodedApiKey: string = 'sk-1aoBmAqJK9qd4Wu9DrhZq3PPoi7RlvQq';
+  private apiKey: string = 'sk-1aoBmAqJK9qd4Wu9DrhZq3PPoi7RlvQq';
   private baseURL: string = 'https://token.sensenova.ai/v1';
   private overlayEnabled: boolean = false;
 
@@ -48,10 +48,22 @@ export class AutonomousPlanner {
     this.selfHealingDriver = selfHealingDriver;
     this.toolExecutor = toolExecutor;
     this.openai = new OpenAI({
-      apiKey: this.hardcodedApiKey,
+      apiKey: this.apiKey,
       baseURL: this.baseURL,
       dangerouslyAllowBrowser: true,
     });
+  }
+
+  public setModelConfiguration(modelName: string, baseURL: string, apiKey?: string): void {
+    this.modelName = modelName;
+    this.baseURL = baseURL;
+    this.apiKey = apiKey || 'sk-free';
+    this.openai = new OpenAI({
+      apiKey: this.apiKey,
+      baseURL: this.baseURL,
+      dangerouslyAllowBrowser: true,
+    });
+    console.log(`[AutonomousPlanner] Switched to model: ${modelName} (${baseURL})`);
   }
 
   public async runSuperAgentLoop(
@@ -495,21 +507,25 @@ export class AutonomousPlanner {
   }
 
   private async fetchSenseNovaStream(body: Record<string, unknown>, signal: AbortSignal): Promise<Response> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    };
+    if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
+    }
+
     const response = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.hardcodedApiKey}`,
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream',
-      },
+      headers,
       body: JSON.stringify(body),
       signal,
     });
     if (!response.ok) {
       const errorBody = await response.text().catch(() => '');
-      throw new Error(`SenseNova HTTP ${response.status}: ${errorBody.slice(0, 240)}`);
+      throw new Error(`AI Provider HTTP ${response.status}: ${errorBody.slice(0, 240)}`);
     }
-    if (!response.body) throw new Error('SenseNova tidak mengembalikan stream body.');
+    if (!response.body) throw new Error('AI Provider stream body kosong.');
     return response;
   }
 

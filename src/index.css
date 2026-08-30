@@ -144,10 +144,14 @@
 }
 .vortexis-prompt-card { display: grid; gap: 0; overflow: hidden; border: 1px solid rgba(148,163,184,.25); border-radius: 13px; background: rgba(7,11,18,.42); box-shadow: 0 14px 35px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.035); }
 .vortexis-prompt-attach { display: none; }
-.vortexis-prompt-toolbar { min-height: 38px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 0; }
+.vortexis-prompt-toolbar { min-height: 38px; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-top: 0; }
 .vortexis-prompt-toolbar-spacer { flex: 1; }
-.vortexis-thinking-select { max-width: 112px; padding: 5px 6px; color: #91a3b5; background: transparent; border: 0; outline: 0; border-radius: 6px; font: 10px system-ui, sans-serif; cursor: pointer; }
+.vortexis-model-select { max-width: 140px; padding: 5px 6px; color: #38bdf8; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.18); outline: 0; border-radius: 6px; font: 10px system-ui, sans-serif; cursor: pointer; text-overflow: ellipsis; }
+.vortexis-model-select:hover, .vortexis-model-select:focus { color: #7dd3fc; background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.35); }
+.vortexis-model-select option { background: #0f172a; color: #e2e8f0; }
+.vortexis-thinking-select { max-width: 100px; padding: 5px 6px; color: #91a3b5; background: transparent; border: 0; outline: 0; border-radius: 6px; font: 10px system-ui, sans-serif; cursor: pointer; }
 .vortexis-thinking-select:hover, .vortexis-thinking-select:focus { color: #d8f3ff; background: rgba(148,163,184,.08); }
+.vortexis-thinking-select option { background: #0f172a; color: #e2e8f0; }
 .vortexis-prompt-tool { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; color: #8d9bad; background: transparent; border: 0; border-radius: 7px; cursor: pointer; font-size: 10px; }
 .vortexis-prompt-tool:hover { color: #dbeafe; background: rgba(148,163,184,.1); }
 .vortexis-prompt-hint { flex: 1; color: #536174; font-size: 9px; text-align: center; }
