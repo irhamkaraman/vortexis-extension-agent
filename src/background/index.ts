@@ -285,19 +285,11 @@ export class BackgroundToolExecutor {
     return true;
   }
 
-  public async hideCursor(tabId?: number): Promise<boolean> {
-    const targetTabId = tabId || (await this.getActiveTabId());
-    if (!targetTabId) return false;
-    if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
-    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_CURSOR_HIDE' });
-    return true;
-  }
-
   public async destroyOverlay(tabId?: number): Promise<boolean> {
     const targetTabId = tabId || (await this.getActiveTabId());
     if (!targetTabId) return false;
     if (!(await this.ensureContentScriptInjected(targetTabId))) return false;
-    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_DESTROY' });
+    await this.sendMessageToTab(targetTabId, { type: 'OVERLAY_DESTROY_ALL' });
     return true;
   }
 

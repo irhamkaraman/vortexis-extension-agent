@@ -316,10 +316,7 @@ export class AutonomousPlanner {
       }
       } finally {
         try {
-          await this.toolExecutor.disableOverlay();
-          await this.toolExecutor.removeOverlayStatus();
-          await this.toolExecutor.hideGrid();
-          await this.toolExecutor.hideCursor();
+          await this.toolExecutor.destroyOverlay();
           this.overlayEnabled = false;
         } catch { /* ignore tab close errors */ }
       }
