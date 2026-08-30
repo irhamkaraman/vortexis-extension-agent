@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, ChevronDown, ChevronRight, CircleAlert, LoaderCircle, Camera, MousePointer, Keyboard, ScrollText, Target, Wand2, Eye } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, CircleAlert, LoaderCircle, Camera, MousePointer, Keyboard, ScrollText, Target, Wand2, Eye, AppWindow, Puzzle } from 'lucide-react';
 import { AgentActivityState } from '../../core/types/agent';
 
 interface AgentActivityTimelineProps {
@@ -40,6 +40,10 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   request_confirmation: <Target className="w-3 h-3" />,
   request_user_confirmation: <Target className="w-3 h-3" />,
   request_trade_confirmation: <Target className="w-3 h-3" />,
+  list_tabs: <AppWindow className="w-3 h-3" />,
+  switch_tab: <AppWindow className="w-3 h-3" />,
+  list_extensions: <Puzzle className="w-3 h-3" />,
+  disable_extension: <Puzzle className="w-3 h-3" />,
 };
 
 const TOOL_LABELS: Record<string, string> = {
@@ -64,14 +68,18 @@ const TOOL_LABELS: Record<string, string> = {
   switch_timeframe: 'Mengganti timeframe',
   fill_order_parameters: 'Mengisi parameter order',
   execute_confirmed_order: 'Mengeksekusi order',
-  wait_for_condition: 'Menunggu kondisi',
-  inspect_canvas_layers: 'Mengecek layer canvas',
-  list_available_tools: 'Memuat daftar tool',
-  save_action_macro: 'Menyimpan macro',
-  finish_task: 'Menyelesaikan tugas',
-  request_confirmation: 'Menunggu persetujuan',
-  request_user_confirmation: 'Menunggu konfirmasi',
-  request_trade_confirmation: 'Menunggu konfirmasi trade',
+  wait_for_condition: 'Menunggu',
+  inspect_canvas_layers: 'Memeriksa kanvas',
+  list_available_tools: 'Mencari tool',
+  save_action_macro: 'Menyimpan workflow',
+  finish_task: 'Menyelesaikan',
+  request_confirmation: 'Meminta persetujuan',
+  request_user_confirmation: 'Meminta persetujuan',
+  request_trade_confirmation: 'Konfirmasi order',
+  list_tabs: 'Membaca daftar tab',
+  switch_tab: 'Beralih tab',
+  list_extensions: 'Membaca daftar ekstensi',
+  disable_extension: 'Menonaktifkan ekstensi',
 };
 
 export const AgentActivityTimeline: React.FC<AgentActivityTimelineProps> = ({

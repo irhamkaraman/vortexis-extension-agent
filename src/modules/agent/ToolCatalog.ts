@@ -54,6 +54,10 @@ export const TOOL_CATALOG: ToolDefinition[] = [
   { name: 'request_trade_confirmation', label: 'Konfirmasi trade', description: 'Meminta konfirmasi transaksi.', whenToUse: 'Sebelum transaksi trading.', category: 'safety', requiresPage: false },
   { name: 'save_action_macro', label: 'Simpan macro', description: 'Menyimpan rangkaian aksi.', whenToUse: 'Saat pengguna meminta menyimpan workflow.', category: 'workflow', requiresPage: false },
   { name: 'finish_task', label: 'Selesaikan tugas', description: 'Menandai tugas selesai.', whenToUse: 'Sebagai penutup workflow multi-langkah.', category: 'workflow', requiresPage: false },
+  { name: 'list_tabs', label: 'Daftar Tab', description: 'Mendapatkan daftar tab yang sedang terbuka beserta ID dan judulnya.', whenToUse: 'Saat pengguna meminta mencari tab atau pindah tab.', category: 'workflow', requiresPage: false },
+  { name: 'switch_tab', label: 'Pindah Tab', description: 'Beralih ke tab tertentu berdasarkan ID tab.', whenToUse: 'Saat pengguna meminta beralih ke tab yang sudah terbuka.', category: 'workflow', requiresPage: false },
+  { name: 'list_extensions', label: 'Daftar Ekstensi', description: 'Mendapatkan daftar semua ekstensi browser yang terpasang beserta ID dan statusnya.', whenToUse: 'Saat pengguna meminta memeriksa ekstensi.', category: 'workflow', requiresPage: false },
+  { name: 'disable_extension', label: 'Matikan Ekstensi', description: 'Menonaktifkan ekstensi browser tertentu berdasarkan ID.', whenToUse: 'Saat pengguna meminta mematikan ekstensi yang bermasalah.', category: 'workflow', requiresPage: false },
 ];
 
 export function getAllToolNames(): Set<string> {
@@ -108,6 +112,8 @@ function defaultToolParameters(): NativeToolDefinition['function']['parameters']
       details: { type: 'string' }, actionName: { type: 'string' }, timeframe: { type: 'string' },
       side: { type: 'string' }, lotSize: { type: 'string' }, sl: { type: 'string' }, tp: { type: 'string' },
       buttonSelector: { type: 'string' }, goalPattern: { type: 'string' }, actionSequence: { type: 'array' },
+      tabId: { type: 'number', description: 'ID of the tab to switch to.' },
+      extensionId: { type: 'string', description: 'ID of the extension to manage.' },
     },
     additionalProperties: true,
   };

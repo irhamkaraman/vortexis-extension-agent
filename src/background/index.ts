@@ -178,6 +178,51 @@ export class BackgroundToolExecutor {
     return tabs[0]?.id;
   }
 
+  public async listTabs(): Promise<{ id: number; title: string; url: string; active: boolean }[]> {
+    const tabs = await chrome.tabs.query({});
+    return tabs.map(t => ({
+      id: t.id!,
+      title: t.title || 'Unknown',
+      url: t.url || 'Unknown',
+      active: t.active
+    }));
+  }
+
+  public async switchTab(tabId: number): Promise<boolean> {
+    try {
+      const tab = await chrome.tabs.update(tabId, { active: true });
+      if (tab.windowId) {
+        await chrome.windows.update(tab.windowId, { focused: true });
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async listExtensions(): Promise<{ id: string; name: string; description: string; enabled: boolean }[]> {
+    if (!chrome.management) throw new Error('Management API is not available.');
+    const extensions = await chrome.management.getAll();
+    return extensions
+      .filter(ext => ext.type === 'extension' || ext.type === 'theme')
+      .map(ext => ({
+        id: ext.id,
+        name: ext.name,
+        description: ext.description,
+        enabled: ext.enabled
+      }));
+  }
+
+  public async disableExtension(extensionId: string): Promise<boolean> {
+    if (!chrome.management) throw new Error('Management API is not available.');
+    try {
+      await chrome.management.setEnabled(extensionId, false);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private async ensureContentScriptInjected(tabId: number): Promise<boolean> {
     if (!chrome.scripting) return false;
 

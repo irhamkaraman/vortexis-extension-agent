@@ -92,6 +92,30 @@ export class ToolRegistry {
           };
         }
 
+        // Universal Tool: Tab and Extension Management
+        case 'list_tabs': {
+          const tabs = await this.toolExecutor.listTabs();
+          return { success: true, data: tabs };
+        }
+        case 'switch_tab': {
+          if (typeof parameters.tabId !== 'number') {
+            return { success: false, error: 'Parameter tabId harus berupa angka.' };
+          }
+          const ok = await this.toolExecutor.switchTab(parameters.tabId);
+          return { success: ok, data: ok ? 'Berhasil beralih tab.' : 'Gagal beralih tab.' };
+        }
+        case 'list_extensions': {
+          const exts = await this.toolExecutor.listExtensions();
+          return { success: true, data: exts };
+        }
+        case 'disable_extension': {
+          if (typeof parameters.extensionId !== 'string') {
+            return { success: false, error: 'Parameter extensionId harus berupa string.' };
+          }
+          const ok = await this.toolExecutor.disableExtension(parameters.extensionId);
+          return { success: ok, data: ok ? 'Berhasil menonaktifkan ekstensi.' : 'Gagal menonaktifkan ekstensi.' };
+        }
+
         // Universal Tool 2: DOM & Coordinates
         case 'scan_dom_elements':
         case 'scan_interactive_tree': {

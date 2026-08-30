@@ -97,7 +97,11 @@ export type ToolName =
   | 'fill_order_parameters'
   | 'request_trade_confirmation'
   | 'execute_confirmed_order'
-  | 'finish_task';
+  | 'finish_task'
+  | 'list_tabs'
+  | 'switch_tab'
+  | 'list_extensions'
+  | 'disable_extension';
 
 export interface TradeDetails {
   pair: string;
