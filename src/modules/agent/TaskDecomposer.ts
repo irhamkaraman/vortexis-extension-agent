@@ -9,15 +9,19 @@ export class TaskDecomposer {
     const prompt = `
 Anda adalah ahli AI otomasi web. Tugas Anda adalah memecah instruksi pengguna menjadi langkah-langkah hierarkis (Tree) yang masuk akal dan dapat dieksekusi secara berurutan.
 
+PENTING - STRATEGI EKSPLORASI ELEMEN TERSEMBUNYI:
+Jika pengguna meminta untuk berinteraksi dengan elemen target spesifik (seperti tombol "Approval", "Edit", "Hapus", "Review") pada sebuah daftar atau tabel, elemen tersebut mungkin TERSEMBUNYI di dalam menu aksi (dropdown menu, ikon titik tiga / kebab menu, ikon roda gigi, dll) yang harus diklik terlebih dahulu.
+Oleh karena itu, Anda HARUS menambahkan langkah eksplisit bertipe "CLICK" untuk mencari dan mengklik menu aksi tersebut sebelum langkah mengklik target utama. Jangan asumsikan target langsung terlihat.
+
 Instruksi Pengguna: "${instruction}"
 
 Buatlah array berformat JSON murni yang berisi langkah-langkah tugas.
 Skema setiap langkah:
 {
   "id": "step-1",
-  "description": "Deskripsi aksi (contoh: Buka halaman Tokopedia)",
+  "description": "Deskripsi aksi (contoh: Klik menu aksi (titik tiga) pada baris tabel X)",
   "actionType": "NAVIGATE" | "CLICK" | "INPUT" | "EXTRACT" | "WAIT" | "LOGIC",
-  "targetPredict": "URL atau nama elemen target (opsional, contoh: https://tokopedia.com atau 'Tombol Login')",
+  "targetPredict": "URL atau deskripsi visual elemen target (opsional, contoh: 'Ikon titik tiga di baris pertama' atau 'Tombol Approval')",
   "dependencies": [] // ID langkah yang harus selesai sebelum ini
 }
 

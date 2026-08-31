@@ -5,6 +5,7 @@ import { MessageItem } from './components/MessageItem';
 import { MinimalHeader } from './components/MinimalHeader';
 import { PermissionModal } from './components/PermissionModal';
 import { TradeApprovalCard } from './components/TradeApprovalCard';
+import { ThinkingIndicator } from './components/ThinkingIndicator';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -95,9 +96,11 @@ export const ChatPanelContainer: React.FC<ChatPanelProps> = ({
             </div>
           </div>
         ) : (
-          messages.map((msg, idx) => (
-            <MessageItem key={msg.id} message={msg} isStreaming={isThinking && idx === messages.length - 1 && msg.role === 'assistant'} />
-          ))
+          <>
+            {messages.map((msg, idx) => (
+              <MessageItem key={msg.id} message={msg} isStreaming={isThinking && idx === messages.length - 1 && msg.role === 'assistant'} />
+            ))}
+          </>
         )}
 
         <div ref={bottomRef} />

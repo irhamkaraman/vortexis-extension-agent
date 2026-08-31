@@ -53,6 +53,10 @@ export class CoordinateDriver {
       const text = (htmlEl.innerText || htmlEl.getAttribute('aria-label') || htmlEl.getAttribute('placeholder') || '').trim();
       const selector = this.generateSelector(htmlEl);
 
+      const ariaLabel = htmlEl.getAttribute('aria-label') || null;
+      const titleAttr = htmlEl.getAttribute('title') || htmlEl.querySelector('title')?.textContent || null;
+      const ariaHaspopup = htmlEl.getAttribute('aria-haspopup') || null;
+
       const info: InteractiveElementInfo = {
         id: currentId,
         tag: htmlEl.tagName.toLowerCase(),
@@ -62,6 +66,9 @@ export class CoordinateDriver {
         width: Math.round(rect.width),
         height: Math.round(rect.height),
         selector,
+        ariaLabel,
+        title: titleAttr,
+        ariaHaspopup,
       };
 
       interactiveList.push(info);

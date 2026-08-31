@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Settings, Maximize2, X, Trash2, Cpu, Activity, MessageSquare } from 'lucide-react';
 import { BackgroundToolExecutor } from '../background';
 import { AgentActivityState, AgentActivityStep, ChatMessage, FileAttachment, ToolName, TradeDetails } from '../core/types/agent';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
@@ -8,11 +9,15 @@ import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
 import { ChatPanelContainer } from './ChatPanel';
 import { ChatInput } from './components/ChatInput';
 import { AgentActivityTimeline } from './components/AgentActivityTimeline';
+import { StealthLogCard } from './components/StealthLogCard';
+import { ThinkingIndicator } from './components/ThinkingIndicator';
+import { ReasoningTree } from './components/ReasoningTree';
+import { SwarmDashboard } from './components/SwarmDashboard';
+import { ConnectionManager } from './components/ConnectionManager';
+import { SwarmTask } from '../core/types/multiAgent';
+import { TaskPlan } from '../core/types/taskTree';
 import { sanitizeToolParameters, summarizeToolResult } from '../modules/agent/ActivityUtils';
 import { AVAILABLE_MODELS } from '../core/types/models';
-
-import { ReasoningTree } from './components/ReasoningTree';
-import { TaskPlan } from '../core/types/taskTree';
 
 const toolExecutor = new BackgroundToolExecutor();
 const ragStore = new BrowserRAGStore();
@@ -27,9 +32,13 @@ export const App: React.FC = () => {
   const [isBusy, setIsBusy] = useState<boolean>(false);
   const [activeToolName, setActiveToolName] = useState<string>('');
   const [statusText, setStatusText] = useState<string>('Thinking...');
-  
+  const [error, setError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>(AVAILABLE_MODELS[0].id);
   const [taskPlan, setTaskPlan] = useState<TaskPlan | null>(null);
+  const [swarmTasks, setSwarmTasks] = useState<SwarmTask[]>([]);
+  const [showSwarm, setShowSwarm] = useState(false);
   const [isDecomposing, setIsDecomposing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'CHAT' | 'TOOLS' | 'ACTIVITY'>('CHAT');
 
   const [activity, setActivity] = useState<AgentActivityState>({ isActive: false, statusText: '', steps: [] });
   const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium');
@@ -50,19 +59,55 @@ export const App: React.FC = () => {
     }
   }, [isThinking, isExecutingTool]);
 
-  // Setup message listener inside useEffect
+  // Setup connection to background service worker
   useEffect(() => {
-    const handleMessage = (msg: any) => {
-      if (msg.type === 'UPDATE_TASK_STEP_STATUS' && taskPlan) {
+    const port = chrome.runtime.connect({ name: 'vortexis-panel' });
+    port.onMessage.addListener((msg) => {
+      // Handle persistent messages if needed
+    });
+
+    const handleMessage = (msg: any, sender: chrome.runtime.MessageSender, sendResponse: (res?: any) => void) => {
+      if (msg.type === 'UPDATE_TASK_STEP_STATUS') {
         setTaskPlan(prev => {
           if (!prev) return prev;
-          const newSteps = prev.steps.map(s => s.id === msg.payload.stepId ? { ...s, status: msg.payload.status } : s);
-          return { ...prev, steps: newSteps };
+          return {
+            ...prev,
+            steps: prev.steps.map(s => 
+              s.id === msg.payload.stepId ? { ...s, status: msg.payload.status } : s
+            )
+          };
         });
       }
     };
     chrome.runtime.onMessage.addListener(handleMessage);
-    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+    
+    // Also listen to worker progress to show swarm dashboard button if tasks exist
+    const handleSwarmUpdate = (msg: any) => {
+      if (['WORKER_PROGRESS', 'WORKER_RESULT', 'WORKER_ERROR'].includes(msg.type)) {
+         setSwarmTasks(prev => {
+            const idx = prev.findIndex(t => t.workerId === msg.workerId);
+            if (idx >= 0) return prev; // handled inside SwarmDashboard component
+            
+            // Just a placeholder if we receive message but task not in local state yet
+            return [...prev, {
+              id: `sw-${Date.now()}`,
+              workerId: msg.workerId,
+              domain: 'worker',
+              url: '',
+              instruction: 'Sub-task',
+              status: msg.status,
+              createdAt: Date.now()
+            }];
+         });
+         setShowSwarm(true);
+      }
+    };
+    chrome.runtime.onMessage.addListener(handleSwarmUpdate);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+      chrome.runtime.onMessage.removeListener(handleSwarmUpdate);
+    };
   }, [taskPlan]);
 
   const handleDecompose = async (instruction: string) => {
@@ -157,9 +202,6 @@ export const App: React.FC = () => {
             }
           }
 
-          // A natural-language delta is the answer stream itself. Do not set
-          // isThinking=false here — the tool loop may still be running.
-          // Thinking will be cleared in the finally block when the run truly ends.
           if (stepUpdateMsg.content && !stepUpdateMsg.toolCall) {
             setIsExecutingTool(false);
             setActiveToolName('');
@@ -325,45 +367,99 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="vortexis-app w-full h-screen text-neutral-100 flex flex-col font-sans select-none overflow-hidden relative">
-      {taskPlan ? (
-        <div className="absolute inset-0 z-50 bg-gray-900 overflow-y-auto">
-          <ReasoningTree plan={taskPlan} onExecute={handleExecutePlan} onRevalidate={handleRevalidate} />
-          <button className="absolute top-4 right-4 text-gray-400 hover:text-white" onClick={() => setTaskPlan(null)}>Tutup</button>
-        </div>
-      ) : null}
-      
-      <ChatPanelContainer
-        messages={messages}
-        isThinking={isThinking}
-        isExecutingTool={isExecutingTool}
-        activeToolName={activeToolName}
-        statusText={statusText}
-        onClearChat={handleClearChat}
-        onEmergencyStop={handleStop}
-        pendingTradeApproval={pendingTradeApproval}
-        activity={activity}
-      />
-      <div className="relative px-3 w-full">
-        {/* Activity Timeline (Attached to ChatInput, NOT floating) */}
-        <div className="w-full relative z-10 px-1">
-          <AgentActivityTimeline
-            activity={activity}
-            isExecutingTool={isExecutingTool}
-            activeToolName={activeToolName}
-            statusText={statusText}
-            isThinking={isThinking}
-          />
-        </div>
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          onStop={handleStop}
-          isBusy={isBusy}
-          reasoningEffort={reasoningEffort}
-          onReasoningEffortChange={setReasoningEffort}
-          selectedModelId={selectedModelId}
-          onModelChange={handleModelChange}
-        />
+    <div className="vortexis-app w-full h-screen text-neutral-100 flex font-sans select-none overflow-hidden relative bg-gray-950">
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {activeTab === 'CHAT' && (
+          <>
+            <ChatPanelContainer
+              messages={messages}
+              isThinking={isThinking}
+              isExecutingTool={isExecutingTool}
+              activeToolName={activeToolName}
+              statusText={statusText}
+              onClearChat={handleClearChat}
+              onEmergencyStop={handleStop}
+              pendingTradeApproval={pendingTradeApproval}
+              activity={activity}
+            />
+            {taskPlan && (
+              <div className="px-2">
+                <ReasoningTree plan={taskPlan} onExecute={handleExecutePlan} onRevalidate={handleRevalidate} onCancel={() => setTaskPlan(null)} />
+              </div>
+            )}
+            {isThinking && (messages.length === 0 || messages[messages.length - 1].role === 'user' || (messages[messages.length - 1].role === 'assistant' && !messages[messages.length - 1].content && !messages[messages.length - 1].thinkingContent && !messages[messages.length - 1].toolCall)) && (
+              <div className="px-3 pb-1 -mt-2">
+                <ThinkingIndicator statusText={statusText || 'Berpikir...'} activity={activity} />
+              </div>
+            )}
+            <div className="p-2 pb-3 bg-transparent">
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                onStop={handleStop}
+                isBusy={isBusy}
+                reasoningEffort={reasoningEffort}
+                onReasoningEffortChange={setReasoningEffort}
+                selectedModelId={selectedModelId}
+                onModelChange={handleModelChange}
+              />
+            </div>
+          </>
+        )}
+
+        {activeTab === 'TOOLS' && (
+          <div className="flex-1 overflow-hidden">
+            <ConnectionManager />
+          </div>
+        )}
+
+        {activeTab === 'ACTIVITY' && (
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-200 mb-4">Activity Log</h2>
+            {activity.steps.length === 0 ? (
+              <div className="text-gray-500 text-xs text-center py-8">Tidak ada aktivitas.</div>
+            ) : (
+              <AgentActivityTimeline
+                activity={activity}
+                isExecutingTool={isExecutingTool}
+                activeToolName={activeToolName}
+                statusText={statusText}
+                isThinking={isThinking}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Right Sidebar Navigation */}
+      <div className="w-14 border-l border-gray-800/50 bg-gray-900/20 flex flex-col items-center py-4 gap-6 shrink-0 z-10">
+        <button
+          onClick={() => setActiveTab('CHAT')}
+          title="Chat"
+          className={`p-2 rounded-xl transition-all duration-300 group relative ${activeTab === 'CHAT' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'}`}
+        >
+          <MessageSquare className="w-5 h-5" />
+          <span className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-800 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">Chat</span>
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('TOOLS')}
+          title="Tools"
+          className={`p-2 rounded-xl transition-all duration-300 group relative ${activeTab === 'TOOLS' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'}`}
+        >
+          <Cpu className="w-5 h-5" />
+          <span className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-800 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">Tools</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ACTIVITY')}
+          title="Activity"
+          className={`p-2 rounded-xl transition-all duration-300 group relative ${activeTab === 'ACTIVITY' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'}`}
+        >
+          <Activity className="w-5 h-5" />
+          <span className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-800 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">Activity</span>
+        </button>
       </div>
     </div>
   );

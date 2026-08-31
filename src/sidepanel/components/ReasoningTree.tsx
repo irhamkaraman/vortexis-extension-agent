@@ -6,9 +6,10 @@ interface ReasoningTreeProps {
   plan: TaskPlan;
   onExecute: (plan: TaskPlan) => void;
   onRevalidate: (plan: TaskPlan) => Promise<boolean>;
+  onCancel?: () => void;
 }
 
-export const ReasoningTree: React.FC<ReasoningTreeProps> = ({ plan, onExecute, onRevalidate }) => {
+export const ReasoningTree: React.FC<ReasoningTreeProps> = ({ plan, onExecute, onRevalidate, onCancel }) => {
   const [steps, setSteps] = useState<TaskStep[]>(plan.steps);
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [validating, setValidating] = useState(false);
@@ -77,27 +78,30 @@ export const ReasoningTree: React.FC<ReasoningTreeProps> = ({ plan, onExecute, o
   };
 
   return (
-    <div className="p-4 bg-gray-900 rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-white font-bold text-lg">Reasoning Tree</h3>
-        <span className="text-xs text-gray-400 truncate w-32" title={plan.originalInstruction}>
-          {plan.originalInstruction}
-        </span>
+    <div className="p-3 bg-gray-900/90 border border-gray-700/50 rounded-xl shadow-lg backdrop-blur-md mb-2 flex flex-col">
+      <div className="flex justify-between items-center mb-2 shrink-0">
+        <h3 className="text-gray-200 font-semibold text-sm">Reasoning Tree</h3>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+             <button onClick={onCancel} className="text-xs text-gray-400 hover:text-white px-2 py-1">Batal</button>
+          )}
+        </div>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="steps">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
-              {steps.map((step, index) => (
-                <Draggable key={step.id} draggableId={step.id} index={index}>
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      className="bg-gray-800 border border-gray-700 p-3 rounded flex flex-col gap-2 relative"
-                    >
-                      <div className="flex justify-between items-start">
+      <div className="overflow-y-auto pr-1 overflow-x-hidden" style={{ maxHeight: '250px' /* approx 5 items */ }}>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="steps">
+            {(provided) => (
+              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                {steps.map((step, index) => (
+                  <Draggable key={step.id} draggableId={step.id} index={index}>
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className="bg-gray-800/80 border border-gray-700 p-2.5 rounded-lg flex flex-col gap-1.5 relative text-sm"
+                      >
+                        <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2" {...provided.dragHandleProps}>
                           <span className="text-gray-500 cursor-grab">⋮⋮</span>
                           <span className={`w-3 h-3 rounded-full ${getStatusColor(step.status)}`}></span>
@@ -134,32 +138,31 @@ export const ReasoningTree: React.FC<ReasoningTreeProps> = ({ plan, onExecute, o
                       >
                         +
                       </button>
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
 
-      <div className="mt-6 flex justify-end gap-3">
-        {!isValid && (
-          <button 
-            onClick={handleValidation}
-            disabled={validating}
-            className="px-4 py-2 bg-yellow-600 text-white text-sm font-semibold rounded hover:bg-yellow-500 transition disabled:opacity-50"
-          >
-            {validating ? 'Memvalidasi...' : 'Re-Validate'}
-          </button>
-        )}
-        <button 
-          onClick={handleExecuteClick}
-          disabled={!isValid || steps.length === 0}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-500 transition disabled:opacity-50"
+      <div className="mt-3 pt-2 border-t border-gray-700 flex justify-between shrink-0">
+        <button
+          onClick={handleValidation}
+          disabled={validating}
+          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-white disabled:opacity-50"
         >
-          Jalankan Tugas
+          {validating ? 'Memeriksa...' : 'Cek Urutan'}
+        </button>
+        <button
+          onClick={handleExecuteClick}
+          disabled={!isValid || validating}
+          className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs text-white font-bold disabled:opacity-50"
+        >
+          Jalankan
         </button>
       </div>
     </div>

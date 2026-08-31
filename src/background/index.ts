@@ -3,13 +3,24 @@ import { ChartVisionService } from '../modules/trading/ChartVisionService';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
 import { TabGraphManager } from '../modules/rag/TabGraphManager';
 import { ProactiveObserver } from '../modules/automation/ProactiveObserver';
+import { ToolRegistry } from '../modules/agent/ToolRegistry';
+import { SelfHealingDriver } from '../modules/agent/SelfHealingDriver';
+import { BrowserRAGStore } from '../modules/rag/BrowserRAGStore';
 import { GuardrailManager } from '../modules/automation/GuardrailManager';
 import { TaskDecomposer } from '../modules/agent/TaskDecomposer';
 import { TaskPlan, TaskStep } from '../core/types/taskTree';
+import { CoordinatorAgent } from '../modules/agent/CoordinatorAgent';
 
 console.log('[VORTEXIS] Background Service Worker initialized.');
 
 export const tabGraphManager = new TabGraphManager();
+export const coordinatorAgent = new CoordinatorAgent(() => {
+  const toolExecutor = new BackgroundToolExecutor();
+  const ragStore = new BrowserRAGStore();
+  const toolRegistry = new ToolRegistry(toolExecutor, ragStore);
+  const selfHealingDriver = new SelfHealingDriver(toolRegistry, toolExecutor);
+  return new AutonomousPlanner(toolRegistry, selfHealingDriver, toolExecutor);
+});
 
 // Initialize proactive observer
 ProactiveObserver.init().catch(console.error);
@@ -17,6 +28,16 @@ ProactiveObserver.init().catch(console.error);
 // Tab closing listener to remove from graph
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabGraphManager.removeTab(tabId);
+});
+
+// Persistent connection listener for Side Panel
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'vortexis-panel') {
+    console.log('[VORTEXIS] Side Panel connected.');
+    port.onDisconnect.addListener(() => {
+      console.log('[VORTEXIS] Side Panel disconnected.');
+    });
+  }
 });
 
 // IPC listener for Tab Context updates
@@ -47,6 +68,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
+
+  if (message.type === 'DISPATCH_SWARM_TASKS') {
+    coordinatorAgent.dispatchSubTasks(message.payload.tasks);
+    if (sendResponse) sendResponse({ success: true });
+    return true;
+  }
+
   if (message.type === 'UPDATE_TAB_CONTEXT' && sender.tab?.id) {
     tabGraphManager.updateTabContext(
       sender.tab.id,

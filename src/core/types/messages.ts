@@ -38,6 +38,9 @@ export interface InteractiveElementInfo {
   width: number;
   height: number;
   selector: string;
+  ariaLabel?: string | null;
+  title?: string | null;
+  ariaHaspopup?: string | null;
 }
 
 export type IPCMessage =

@@ -128,7 +128,7 @@ export class ToolRegistry {
             success: true,
             data: {
               summary: graphData.summary,
-              relevantTabs: graphData.relevantTabs.map(t => ({ tabId: t.tabId, title: t.title, domain: t.domain, url: t.url, entitiesCount: t.entities.length })),
+              relevantTabs: graphData.relevantTabs.map((t: any) => ({ tabId: t.tabId, title: t.title, domain: t.domain, url: t.url, entitiesCount: t.entities.length })),
             }
           };
         }
