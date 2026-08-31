@@ -4,8 +4,12 @@ import { CoordinateDriver } from '../modules/dom-driver/CoordinateDriver';
 import { CanvasDrawingDriver } from '../modules/trading/CanvasDrawingDriver';
 import { OrderExecutionManager } from '../modules/trading/OrderExecutionManager';
 import { PageLockDriver } from '../modules/overlay/PageLockDriver';
+import { MutationTracker } from './MutationTracker';
 
 console.log('[VORTEXIS] Content Script loaded.');
+
+// Initialize background entity tracker
+MutationTracker.init();
 
 chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse) => {
   try {

@@ -101,7 +101,8 @@ export type ToolName =
   | 'list_tabs'
   | 'switch_tab'
   | 'list_extensions'
-  | 'disable_extension';
+  | 'disable_extension'
+  | 'query_context_graph';
 
 export interface TradeDetails {
   pair: string;

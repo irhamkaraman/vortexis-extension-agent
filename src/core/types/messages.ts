@@ -73,4 +73,5 @@ export type IPCMessage =
   | { type: 'OVERLAY_CLICK'; payload?: Record<string, never> }
   | { type: 'OVERLAY_GRID_SHOW'; payload?: Record<string, never> }
   | { type: 'OVERLAY_GRID_HIDE'; payload?: Record<string, never> }
-  | { type: 'OVERLAY_DESTROY_ALL'; payload?: Record<string, never> };
+  | { type: 'OVERLAY_DESTROY_ALL'; payload?: Record<string, never> }
+  | { type: 'UPDATE_TAB_CONTEXT'; payload: { url: string; title: string; entities: any[] } };

@@ -116,6 +116,23 @@ export class ToolRegistry {
           return { success: ok, data: ok ? 'Berhasil menonaktifkan ekstensi.' : 'Gagal menonaktifkan ekstensi.' };
         }
 
+        case 'query_context_graph': {
+          if (!parameters.query) {
+            return { success: false, error: 'Parameter query diperlukan.' };
+          }
+          // The tabGraphManager was exported from background/index.ts.
+          // Since ToolRegistry is instantiated in background/index.ts context, we need to import it here.
+          const { tabGraphManager } = await import('../../background/index');
+          const graphData = tabGraphManager.queryAcrossTabs(parameters.query);
+          return {
+            success: true,
+            data: {
+              summary: graphData.summary,
+              relevantTabs: graphData.relevantTabs.map(t => ({ tabId: t.tabId, title: t.title, domain: t.domain, url: t.url, entitiesCount: t.entities.length })),
+            }
+          };
+        }
+
         // Universal Tool 2: DOM & Coordinates
         case 'scan_dom_elements':
         case 'scan_interactive_tree': {

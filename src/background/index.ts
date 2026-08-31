@@ -1,7 +1,30 @@
 import { InteractiveElementInfo, IPCMessage } from '../core/types/messages';
 import { ChartVisionService } from '../modules/trading/ChartVisionService';
+import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
+import { TabGraphManager } from '../modules/rag/TabGraphManager';
 
 console.log('[VORTEXIS] Background Service Worker initialized.');
+
+export const tabGraphManager = new TabGraphManager();
+
+// Tab closing listener to remove from graph
+chrome.tabs.onRemoved.addListener((tabId) => {
+  tabGraphManager.removeTab(tabId);
+});
+
+// IPC listener for Tab Context updates
+chrome.runtime.onMessage.addListener((message: IPCMessage, sender, sendResponse) => {
+  if (message.type === 'UPDATE_TAB_CONTEXT' && sender.tab?.id) {
+    tabGraphManager.updateTabContext(
+      sender.tab.id,
+      message.payload.url,
+      message.payload.title,
+      message.payload.entities
+    );
+    if (sendResponse) sendResponse({ success: true });
+    return true;
+  }
+});
 
 if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
