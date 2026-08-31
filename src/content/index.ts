@@ -52,20 +52,32 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
       }
 
       case 'CLICK_COORDINATE': {
-        const res = CoordinateDriver.clickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
-        sendResponse(res);
+        (async () => {
+          try {
+            const res = await CoordinateDriver.clickCoordinate(message.payload.x, message.payload.y, message.payload.selector);
+            sendResponse(res);
+          } catch (e: any) {
+            sendResponse({ success: false, error: e.message });
+          }
+        })();
         break;
       }
 
       case 'TYPE_WITH_DELAY': {
-        const res = CoordinateDriver.typeWithDelay(
-          message.payload.text,
-          message.payload.x,
-          message.payload.y,
-          message.payload.selector,
-          message.payload.wait_ms
-        );
-        sendResponse(res);
+        (async () => {
+          try {
+            const res = await CoordinateDriver.typeWithDelay(
+              message.payload.text,
+              message.payload.x,
+              message.payload.y,
+              message.payload.selector,
+              message.payload.wait_ms
+            );
+            sendResponse(res);
+          } catch (e: any) {
+            sendResponse({ success: false, error: e.message });
+          }
+        })();
         break;
       }
 

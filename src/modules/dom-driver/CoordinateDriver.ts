@@ -1,4 +1,6 @@
 import { InteractiveElementInfo } from '../../core/types/messages';
+import { RiskClassifier } from './RiskClassifier';
+import { ActionPreviewDriver } from '../overlay/ActionPreviewDriver';
 
 export class CoordinateDriver {
   private static markerContainer: HTMLDivElement | null = null;
@@ -88,7 +90,7 @@ export class CoordinateDriver {
     return interactiveList;
   }
 
-  public static clickCoordinate(x: number, y: number, selector?: string, snapRadiusPx: number = 120): { success: boolean; result?: string; error?: string } {
+  public static async clickCoordinate(x: number, y: number, selector?: string, snapRadiusPx: number = 120): Promise<{ success: boolean; result?: string; error?: string }> {
     try {
       let targetEl: Element | null = null;
       let fallbackUsed = false;
@@ -98,7 +100,6 @@ export class CoordinateDriver {
       if (selector) {
         targetEl = document.querySelector(selector);
         if (targetEl && x === 0 && y === 0) {
-          // If only selector is provided without specific coordinates, calculate its center
           const rect = (targetEl as HTMLElement).getBoundingClientRect();
           clickX = rect.left + rect.width / 2;
           clickY = rect.top + rect.height / 2;
@@ -130,11 +131,22 @@ export class CoordinateDriver {
       }
 
       const htmlEl = targetEl as HTMLElement;
+      const info = this.describeElement(htmlEl);
+
+      // --- RISK ASSESSMENT & DRY RUN PREVIEW ---
+      const riskLevel = RiskClassifier.assessRisk(htmlEl, 'click');
+      const actionDesc = `VORTEXIS akan mengklik elemen "${info.text || info.tag}".`;
+      try {
+        await ActionPreviewDriver.requestConfirmation(htmlEl, 'click', riskLevel, actionDesc);
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+      // -----------------------------------------
+
       this.showClickGlow(clickX, clickY);
 
       htmlEl.focus();
 
-      // Trigger synthetic mouse events directly at the accurate coordinate
       ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((evtName) => {
         const evt = new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY });
         htmlEl.dispatchEvent(evt);
@@ -151,7 +163,6 @@ export class CoordinateDriver {
         }
       }
 
-      const info = this.describeElement(htmlEl);
       return {
         success: true,
         result: fallbackUsed
@@ -200,13 +211,13 @@ export class CoordinateDriver {
     };
   }
 
-  public static typeWithDelay(
+  public static async typeWithDelay(
     text: string,
     x?: number,
     y?: number,
     selector?: string,
     waitMs: number = 300
-  ): { success: boolean; result?: string; error?: string } {
+  ): Promise<{ success: boolean; result?: string; error?: string }> {
     try {
       let targetEl: Element | null = null;
       if (selector) targetEl = document.querySelector(selector);
@@ -216,6 +227,17 @@ export class CoordinateDriver {
       if (!targetEl) return { success: false, error: 'Target input element not found.' };
 
       const inputEl = targetEl as HTMLInputElement | HTMLTextAreaElement;
+
+      // --- RISK ASSESSMENT & DRY RUN PREVIEW ---
+      const riskLevel = RiskClassifier.assessRisk(inputEl, 'type');
+      const actionDesc = `VORTEXIS akan mengetik teks ke dalam elemen input.`;
+      try {
+        await ActionPreviewDriver.requestConfirmation(inputEl, 'type', riskLevel, actionDesc);
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+      // -----------------------------------------
+
       inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       inputEl.focus();
       inputEl.value = text;
