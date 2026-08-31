@@ -1,6 +1,7 @@
 import { InteractiveElementInfo } from '../../core/types/messages';
 import { RiskClassifier } from './RiskClassifier';
 import { ActionPreviewDriver } from '../overlay/ActionPreviewDriver';
+import { ElementLocator } from './ElementLocator';
 
 export class CoordinateDriver {
   private static markerContainer: HTMLDivElement | null = null;
@@ -98,11 +99,23 @@ export class CoordinateDriver {
       let clickY = y;
 
       if (selector) {
-        targetEl = document.querySelector(selector);
-        if (targetEl && x === 0 && y === 0) {
-          const rect = (targetEl as HTMLElement).getBoundingClientRect();
-          clickX = rect.left + rect.width / 2;
-          clickY = rect.top + rect.height / 2;
+        const locatorResult = ElementLocator.locateElement(selector);
+        if (locatorResult && locatorResult.element) {
+          targetEl = locatorResult.element;
+          if (x === 0 && y === 0) {
+            const rect = (targetEl as HTMLElement).getBoundingClientRect();
+            clickX = rect.left + rect.width / 2;
+            clickY = rect.top + rect.height / 2;
+          }
+          console.log(`[VORTEXIS] Found element via ${locatorResult.method} with score ${locatorResult.score}`);
+        } else {
+          // Fallback to pure document.querySelector just in case it was a valid CSS selector and A11y missed it
+          targetEl = document.querySelector(selector);
+          if (targetEl && x === 0 && y === 0) {
+            const rect = (targetEl as HTMLElement).getBoundingClientRect();
+            clickX = rect.left + rect.width / 2;
+            clickY = rect.top + rect.height / 2;
+          }
         }
       } else {
         targetEl = document.elementFromPoint(x, y);
@@ -220,7 +233,15 @@ export class CoordinateDriver {
   ): Promise<{ success: boolean; result?: string; error?: string }> {
     try {
       let targetEl: Element | null = null;
-      if (selector) targetEl = document.querySelector(selector);
+      if (selector) {
+        const locatorResult = ElementLocator.locateElement(selector);
+        if (locatorResult && locatorResult.element) {
+          targetEl = locatorResult.element;
+          console.log(`[VORTEXIS] Found input via ${locatorResult.method} with score ${locatorResult.score}`);
+        } else {
+          targetEl = document.querySelector(selector);
+        }
+      }
       if (!targetEl && x !== undefined && y !== undefined) targetEl = document.elementFromPoint(x, y);
       if (!targetEl) targetEl = document.activeElement;
 
