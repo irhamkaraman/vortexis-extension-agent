@@ -388,7 +388,7 @@ export class BackgroundToolExecutor {
 
     try {
       await chrome.scripting.executeScript({
-        target: { tabId },
+        target: { tabId, allFrames: true },
         files: ['src/content/index.js'],
       });
       return true;
@@ -397,22 +397,69 @@ export class BackgroundToolExecutor {
     }
   }
 
-  private sendMessageToTab<R = any>(tabId: number, message: IPCMessage): Promise<R> {
-    return new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tabId, message, (response) => {
-        if (chrome.runtime.lastError) {
-          return reject(
-            new Error(
-              `${chrome.runtime.lastError.message}. Pastikan Anda berada di tab website umum dan muat ulang halaman (F5).`
-            )
-          );
-        }
-        if (response && response.success === false && response.error) {
-          return reject(new Error(response.error));
-        }
-        resolve(response?.data || response);
+  private async sendMessageToTab<R = any>(tabId: number, message: IPCMessage): Promise<R> {
+    let frames: chrome.webNavigation.GetAllFrameResultDetails[] = [];
+    try {
+      if (chrome.webNavigation && chrome.webNavigation.getAllFrames) {
+        frames = await new Promise<chrome.webNavigation.GetAllFrameResultDetails[]>((resolve) => {
+          chrome.webNavigation.getAllFrames({ tabId }, (details) => resolve(details || []));
+        });
+      }
+    } catch (e) {
+      console.warn('[VORTEXIS] webNavigation API failed, falling back to top frame only.', e);
+    }
+
+    if (!frames || frames.length === 0) {
+      // Fallback if webNavigation is unavailable
+      return new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, message, (response) => {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(`${chrome.runtime.lastError.message}. Pastikan Anda berada di tab website umum dan muat ulang halaman (F5).`));
+          }
+          if (response && response.success === false && response.error) {
+            return reject(new Error(response.error));
+          }
+          resolve(response?.data || response);
+        });
       });
-    });
+    }
+
+    if (message.type === 'SCAN_INTERACTIVE_TREE') {
+      const allElements: any[] = [];
+      const promises = frames.map(frame => new Promise<any>((resolve) => {
+        chrome.tabs.sendMessage(tabId, message, { frameId: frame.frameId }, (res) => {
+          if (chrome.runtime.lastError) resolve(null);
+          else resolve(res);
+        });
+      }));
+      const results = await Promise.all(promises);
+      for (const res of results) {
+        if (res && res.success && res.elements) {
+          allElements.push(...res.elements);
+        }
+      }
+      return { success: true, elements: allElements } as any;
+    }
+
+    // For actions like CLICK or TYPE, try all frames and return first success
+    const promises = frames.map(frame => new Promise<any>((resolve) => {
+      chrome.tabs.sendMessage(tabId, message, { frameId: frame.frameId }, (res) => {
+        if (chrome.runtime.lastError) resolve({ success: false, error: chrome.runtime.lastError.message });
+        else resolve(res || { success: false, error: 'No response' });
+      });
+    }));
+    
+    const results = await Promise.all(promises);
+    const successResult = results.find(r => r && r.success !== false && !r.error);
+    if (successResult) return successResult?.data || successResult;
+
+    const falseSuccess = results.find(r => r && r.success);
+    if (falseSuccess) return falseSuccess?.data || falseSuccess;
+
+    const validError = results.find(r => r && r.error && !r.error.includes('Receiving end does not exist'));
+    if (validError) throw new Error(validError.error);
+
+    throw new Error('Elemen tidak ditemukan di frame mana pun atau halaman belum sepenuhnya dimuat.');
   }
 
   public async enableOverlay(tabId?: number): Promise<boolean> {

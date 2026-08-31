@@ -10,6 +10,8 @@ const obfuscator = (rollupObfuscator as any).default || rollupObfuscator;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 function copyManifestPlugin(): Plugin {
   return {
     name: 'copy-manifest-plugin',
@@ -46,38 +48,38 @@ export default defineConfig({
           return 'assets/[name]-[hash].js';
         },
       },
-      plugins: [
+      plugins: isDev ? [] : [
+        // Only apply lightweight obfuscation in production.
+        // Heavy options (controlFlowFlattening, deadCodeInjection, selfDefending)
+        // slow down the extension significantly and can cause agent tool-call timeouts.
         obfuscator({
           globalOptions: {
             compact: true,
-            controlFlowFlattening: true,
-            controlFlowFlatteningThreshold: 0.75,
-            deadCodeInjection: true,
-            deadCodeInjectionThreshold: 0.4,
+            controlFlowFlattening: false,         // DISABLED: causes 2-5x perf slowdown
+            deadCodeInjection: false,              // DISABLED: inflates bundle, slow parse
             debugProtection: false,
             debugProtectionInterval: 0,
             disableConsoleOutput: false,
             identifierNamesGenerator: 'hexadecimal',
             log: false,
-            numbersToExpressions: true,
+            numbersToExpressions: false,           // DISABLED: runtime overhead
             renameGlobals: false,
-            selfDefending: true,
+            selfDefending: false,                  // DISABLED: breaks with devtools open
             simplify: true,
-            splitStrings: true,
-            splitStringsChunkLength: 10,
+            splitStrings: false,                   // DISABLED: fragments prompt strings
             stringArray: true,
             stringArrayCallsTransform: true,
-            stringArrayCallsTransformThreshold: 1,
-            stringArrayEncoding: ['base64', 'rc4'],
+            stringArrayCallsTransformThreshold: 0.5,
+            stringArrayEncoding: ['base64'],        // Lighter: base64 only, no rc4
             stringArrayIndexShift: true,
             stringArrayRotate: true,
             stringArrayShuffle: true,
-            stringArrayWrappersCount: 2,
+            stringArrayWrappersCount: 1,
             stringArrayWrappersChainedCalls: true,
-            stringArrayWrappersParametersMaxCount: 4,
+            stringArrayWrappersParametersMaxCount: 2,
             stringArrayWrappersType: 'function',
-            stringArrayThreshold: 1,
-            unicodeEscapeSequence: true
+            stringArrayThreshold: 0.75,            // Only 75% of strings obfuscated
+            unicodeEscapeSequence: false,          // DISABLED: unnecessary overhead
           }
         })
       ]

@@ -257,7 +257,7 @@ export const App: React.FC = () => {
             },
           });
         },
-         12,
+         25,
          reasoningEffort
       );
     } catch (err: any) {

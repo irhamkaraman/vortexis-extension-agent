@@ -1,6 +1,5 @@
 import React from 'react';
-import { Check, ChevronDown, ChevronRight, CircleAlert, LoaderCircle } from 'lucide-react';
-import { useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
 import { AgentActivityState } from '../../core/types/agent';
 
 const TOOL_STATUS_MESSAGES: Record<string, string> = {
@@ -45,29 +44,15 @@ interface ThinkingIndicatorProps {
 export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   activity,
   statusText,
-  thought: _thought,
-  isExecutingTool: _isExecutingTool,
   activeToolName,
 }) => {
-  const [thoughtOpen, setThoughtOpen] = useState(true);
-  const derivedStatus = statusText || (activeToolName ? TOOL_STATUS_MESSAGES[activeToolName] || `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...');
+  const activeStep = activity.steps.find((step) => step.status === 'active');
+  const derivedStatus = activeStep?.title || statusText || (activeToolName ? TOOL_STATUS_MESSAGES[activeToolName] || `Menjalankan ${activeToolName}...` : 'Menyiapkan jawaban...');
 
   return (
-    <div className="vortexis-live-activity" role="status" aria-live="polite">
-      <div className="vortexis-thinking-line">
-        <span className="vortexis-thinking-label">{derivedStatus}</span>
-        <button type="button" onClick={() => setThoughtOpen((open) => !open)} className="vortexis-thinking-toggle" aria-label="Tampilkan status proses">
-           {thoughtOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-        </button>
-      </div>
-      {thoughtOpen && <div className="vortexis-activity-timeline">
-        {activity.steps.map((step) => (
-          <div className={`vortexis-activity-step is-${step.status}`} key={step.id}>
-            <span className="vortexis-activity-icon">{step.status === 'active' ? <LoaderCircle className="vortexis-activity-spin" /> : step.status === 'success' ? <Check /> : <CircleAlert />}</span>
-            <div className="vortexis-activity-copy"><strong>{step.title}</strong><span>{step.summary}</span>{step.parameters && Object.keys(step.parameters).length > 0 && <code>{JSON.stringify(step.parameters, null, 2)}</code>}</div>
-          </div>
-        ))}
-      </div>}
+    <div className="flex items-center gap-3 py-2 px-1 text-sm text-gray-400" role="status" aria-live="polite">
+      <LoaderCircle className="w-4 h-4 animate-spin text-purple-400" />
+      <span className="vortexis-thinking-label">{derivedStatus}</span>
     </div>
   );
 };

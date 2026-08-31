@@ -249,7 +249,9 @@ export class CoordinateDriver {
           targetEl = document.querySelector(selector);
         }
       }
-      if (!targetEl && x !== undefined && y !== undefined) targetEl = document.elementFromPoint(x, y);
+      if (!targetEl && x !== undefined && y !== undefined && (x > 0 || y > 0)) {
+        targetEl = document.elementFromPoint(x, y);
+      }
       if (!targetEl) targetEl = document.activeElement;
 
       if (!targetEl) return { success: false, error: 'Target input element not found.' };
@@ -267,13 +269,59 @@ export class CoordinateDriver {
       // -----------------------------------------
 
       inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await new Promise(r => setTimeout(r, 150));
+
+      // Handle contenteditable elements (Google Forms, rich text editors)
+      // execCommand is forbidden in extension context — use Selection + Range API instead
+      if (inputEl.getAttribute('contenteditable') !== null || inputEl.isContentEditable) {
+        inputEl.focus();
+        // Select all existing content and replace it
+        const selection = window.getSelection();
+        if (selection) {
+          const range = document.createRange();
+          range.selectNodeContents(inputEl);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        // Delete selected content then insert new text
+        const textNode = document.createTextNode(text);
+        const range2 = document.createRange();
+        range2.selectNodeContents(inputEl);
+        range2.deleteContents();
+        range2.insertNode(textNode);
+        // Move caret to end
+        range2.setStartAfter(textNode);
+        range2.collapse(true);
+        const sel2 = window.getSelection();
+        if (sel2) { sel2.removeAllRanges(); sel2.addRange(range2); }
+        // Notify React/framework
+        inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }));
+        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        return { success: true, result: `Typed "${text}" into contenteditable element.` };
+      }
+
+      // Handle standard input/textarea with React and native value setters
       inputEl.focus();
-      inputEl.value = text;
 
-      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+      // Try to use native input value setter to bypass React controlled component
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+        || Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(inputEl, text);
+      } else {
+        (inputEl as any).value = text;
+      }
+
+      // Dispatch all relevant events to trigger React/Vue/Angular state updates
+      inputEl.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'a' }));
+      inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }));
       inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+      inputEl.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }));
 
-      return { success: true, result: `Typed "${text}" with ${waitMs}ms delay.` };
+      await new Promise(r => setTimeout(r, waitMs));
+
+      return { success: true, result: `Typed "${text}" successfully.` };
     } catch (err: any) {
       return { success: false, error: err.message || String(err) };
     }

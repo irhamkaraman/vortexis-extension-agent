@@ -91,7 +91,9 @@ export class AutonomousPlanner {
     const conversationTurns: { role: 'user' | 'assistant' | 'system' | 'tool'; content: string; tool_call_id?: string }[] = [
       {
         role: 'system',
-        content: `PRIMARY USER GOAL: "${userGoal}". Your mission is strictly to accomplish this goal in the fewest steps possible. Stop immediately with your final answer as soon as you have the needed information or completed the action.`,
+        content: `PRIMARY USER GOAL: "${userGoal}". Your mission is strictly to accomplish this goal in the fewest steps possible. Stop immediately with your final answer as soon as you have the needed information or completed the action.
+
+ANTI-LOOP INSTRUCTION: If you have already called scan_interactive_tree or get_page_context in this session, you MUST NOT call them again. Use the results you already received to execute type_text or click_coordinate immediately. Repeated scanning without action is a failure state.`,
       },
       ...trimmedHistory.map((m) => ({
         role: m.role,
@@ -296,15 +298,42 @@ export class AutonomousPlanner {
         // Keep conversation history compact during multi-turn loops to avoid API latency spikes
         if (conversationTurns.length > 8) {
           const systemPrompts = conversationTurns.filter((t) => t.role === 'system');
+          const firstUserPrompt = conversationTurns.find((t) => t.role === 'user');
           const recentTurns = conversationTurns.slice(-6);
           conversationTurns.length = 0;
-          conversationTurns.push(...systemPrompts, ...recentTurns);
+          conversationTurns.push(...systemPrompts);
+          if (firstUserPrompt && !recentTurns.includes(firstUserPrompt)) {
+            conversationTurns.push(firstUserPrompt);
+          }
+          conversationTurns.push(...recentTurns);
         }
 
-        // Truncate large tool results (screenshots, page context) to prevent context overflow
+        // Truncate large tool results — keep scan results larger so AI can see all elements
         let toolResultContent = typeof toolRes.data === 'string' ? toolRes.data : JSON.stringify(toolRes.data || toolRes.error || { success: toolRes.success });
-        if (toolResultContent.length > 1000) {
-          toolResultContent = toolResultContent.substring(0, 1000) + '... [ringkasan]';
+        const isScanResult = toolName === 'scan_interactive_tree' || toolName === 'scan_dom_elements';
+        const isPageContext = toolName === 'get_page_context' || toolName === 'extract_structured_data';
+        const maxLen = isScanResult ? 6000 : isPageContext ? 4000 : 1200;
+        if (toolResultContent.length > maxLen) {
+          toolResultContent = toolResultContent.substring(0, maxLen) + '... [terpotong — gunakan data di atas untuk melanjutkan, JANGAN scan ulang]';
+        }
+
+        // Anti-loop guard: detect and break consecutive passive scan/read cycles
+        // Count how many of the last N tool results are scans/reads with NO action in between
+        const last10 = conversationTurns.slice(-10);
+        let consecutivePassiveScans = 0;
+        for (let i = last10.length - 1; i >= 0; i--) {
+          const t = last10[i];
+          if (t.role !== 'tool') continue;
+          const isPassive = t.content?.includes('"count"') || t.content?.includes('"elements"') || t.content?.includes('"snippet"') || t.content?.includes('"ragMatches"');
+          if (isPassive) {
+            consecutivePassiveScans++;
+          } else {
+            // An actual action tool result breaks the streak
+            break;
+          }
+        }
+        if (consecutivePassiveScans >= 2 && (isScanResult || isPageContext)) {
+          toolResultContent += `\n\n⛔ HARD STOP — ANTI-LOOP ENFORCED (${consecutivePassiveScans + 1} scans with 0 actions): You are in an infinite observation loop. You have all the data you need. You MUST call type_text or click_coordinate RIGHT NOW using the coordinates/selectors from previous scan results. DO NOT call scan_interactive_tree, get_page_context, or capture_screen again. Failure to act immediately is a critical error.`;
         }
         conversationTurns.push({
           role: 'tool',
@@ -314,7 +343,11 @@ export class AutonomousPlanner {
 
         await new Promise((r) => setTimeout(r, 300));
       }
-      } finally {
+
+      if (iteration >= maxIterations) {
+        throw new Error('Batas maksimum iterasi tercapai (agent terjebak dalam loop). Eksekusi dihentikan.');
+      }
+    } finally {
         try {
           await this.toolExecutor.destroyOverlay();
           this.overlayEnabled = false;
@@ -337,7 +370,7 @@ export class AutonomousPlanner {
   }
 
   private async prefetchRelevantPageContext(userGoal: string, shouldStop: () => boolean): Promise<string | null> {
-    if (shouldStop() || !/(halaman|page|website|situs|web|teks|isi|konten|harga|chart|grafik|data di|yang tampil)/i.test(userGoal)) {
+    if (shouldStop() || !/(halaman|page|website|situs|web|teks|isi|konten|harga|chart|grafik|data di|yang tampil|soal|ujian|kuis|tugas|form|ini)/i.test(userGoal)) {
       return null;
     }
 
