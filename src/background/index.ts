@@ -200,6 +200,24 @@ export class BackgroundToolExecutor {
     }
   }
 
+  public async createTab(url: string): Promise<{ id: number; title: string; url: string } | null> {
+    try {
+      const tab = await chrome.tabs.create({ url, active: true });
+      return { id: tab.id!, title: tab.title || 'New Tab', url: tab.url || url };
+    } catch {
+      return null;
+    }
+  }
+
+  public async closeTab(tabId: number): Promise<boolean> {
+    try {
+      await chrome.tabs.remove(tabId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   public async listExtensions(): Promise<{ id: string; name: string; description: string; enabled: boolean }[]> {
     if (!chrome.management) throw new Error('Management API is not available.');
     const extensions = await chrome.management.getAll();

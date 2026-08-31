@@ -97,11 +97,16 @@ export class CoordinateDriver {
 
       if (selector) {
         targetEl = document.querySelector(selector);
+        if (targetEl && x === 0 && y === 0) {
+          // If only selector is provided without specific coordinates, calculate its center
+          const rect = (targetEl as HTMLElement).getBoundingClientRect();
+          clickX = rect.left + rect.width / 2;
+          clickY = rect.top + rect.height / 2;
+        }
       } else {
         targetEl = document.elementFromPoint(x, y);
       }
 
-      // If element is an inner text/span/icon inside an interactive container (like <a> or <button>), traverse up to the interactive parent!
       if (targetEl) {
         const interactiveAncestor = targetEl.closest('a[href], button, [role="button"], input, select, textarea');
         if (interactiveAncestor) {
@@ -109,7 +114,7 @@ export class CoordinateDriver {
         }
       }
 
-      if (!targetEl) {
+      if (!targetEl && x > 0 && y > 0) {
         targetEl = this.findNearestInteractiveElement(x, y, snapRadiusPx);
         if (targetEl) {
           const el = targetEl as HTMLElement;
@@ -121,7 +126,7 @@ export class CoordinateDriver {
       }
 
       if (!targetEl) {
-        return { success: false, error: `Element not found at (x: ${x}, y: ${y}).` };
+        return { success: false, error: `Element not found at (x: ${x}, y: ${y}) or via selector.` };
       }
 
       const htmlEl = targetEl as HTMLElement;
@@ -129,18 +134,16 @@ export class CoordinateDriver {
 
       htmlEl.focus();
 
-      // Trigger synthetic mouse events
-      ['mousedown', 'mouseup', 'click'].forEach((evtName) => {
+      // Trigger synthetic mouse events directly at the accurate coordinate
+      ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((evtName) => {
         const evt = new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY });
         htmlEl.dispatchEvent(evt);
       });
 
-      // Also call native click method directly
       if (typeof htmlEl.click === 'function') {
         htmlEl.click();
       }
 
-      // If it's an anchor tag with href, navigate directly as fallback
       if (htmlEl.tagName.toLowerCase() === 'a' && (htmlEl as HTMLAnchorElement).href) {
         const href = (htmlEl as HTMLAnchorElement).href;
         if (href && !href.startsWith('javascript:')) {
@@ -153,7 +156,7 @@ export class CoordinateDriver {
         success: true,
         result: fallbackUsed
           ? `Snapped: clicked "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)}).`
-          : `Clicked "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)})`,
+          : `Accurate Click on "${info.text || info.tag}" at (${Math.round(clickX)}, ${Math.round(clickY)})`,
       };
     } catch (err: any) {
       return { success: false, error: err.message || String(err) };
