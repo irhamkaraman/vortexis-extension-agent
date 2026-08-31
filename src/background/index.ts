@@ -4,6 +4,8 @@ import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
 import { TabGraphManager } from '../modules/rag/TabGraphManager';
 import { ProactiveObserver } from '../modules/automation/ProactiveObserver';
 import { GuardrailManager } from '../modules/automation/GuardrailManager';
+import { TaskDecomposer } from '../modules/agent/TaskDecomposer';
+import { TaskPlan, TaskStep } from '../core/types/taskTree';
 
 console.log('[VORTEXIS] Background Service Worker initialized.');
 
@@ -18,7 +20,33 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // IPC listener for Tab Context updates
-chrome.runtime.onMessage.addListener((message: IPCMessage, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'DECOMPOSE_INSTRUCTION') {
+    TaskDecomposer.decomposeInstruction(message.payload.instruction)
+      .then(plan => sendResponse({ plan }))
+      .catch(err => sendResponse({ error: err.message }));
+    return true; // async
+  }
+
+  if (message.type === 'REVALIDATE_PLAN') {
+    TaskDecomposer.revalidatePlan(message.payload.plan)
+      .then(res => sendResponse(res))
+      .catch(err => sendResponse({ valid: false, reason: err.message }));
+    return true; // async
+  }
+
+  if (message.type === 'EXECUTE_PLAN') {
+    const plan: TaskPlan = message.payload.plan;
+    (async () => {
+      for (const step of plan.steps) {
+        chrome.runtime.sendMessage({ type: 'UPDATE_TASK_STEP_STATUS', payload: { stepId: step.id, status: 'RUNNING' } });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        chrome.runtime.sendMessage({ type: 'UPDATE_TASK_STEP_STATUS', payload: { stepId: step.id, status: 'COMPLETED' } });
+      }
+    })();
+    sendResponse({ success: true });
+    return true;
+  }
   if (message.type === 'UPDATE_TAB_CONTEXT' && sender.tab?.id) {
     tabGraphManager.updateTabContext(
       sender.tab.id,

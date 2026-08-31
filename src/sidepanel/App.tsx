@@ -11,6 +11,9 @@ import { AgentActivityTimeline } from './components/AgentActivityTimeline';
 import { sanitizeToolParameters, summarizeToolResult } from '../modules/agent/ActivityUtils';
 import { AVAILABLE_MODELS } from '../core/types/models';
 
+import { ReasoningTree } from './components/ReasoningTree';
+import { TaskPlan } from '../core/types/taskTree';
+
 const toolExecutor = new BackgroundToolExecutor();
 const ragStore = new BrowserRAGStore();
 const toolRegistry = new ToolRegistry(toolExecutor, ragStore);
@@ -24,6 +27,10 @@ export const App: React.FC = () => {
   const [isBusy, setIsBusy] = useState<boolean>(false);
   const [activeToolName, setActiveToolName] = useState<string>('');
   const [statusText, setStatusText] = useState<string>('Thinking...');
+  
+  const [taskPlan, setTaskPlan] = useState<TaskPlan | null>(null);
+  const [isDecomposing, setIsDecomposing] = useState(false);
+
   const [activity, setActivity] = useState<AgentActivityState>({ isActive: false, statusText: '', steps: [] });
   const [reasoningEffort, setReasoningEffort] = useState<'none' | 'low' | 'medium' | 'high'>('medium');
   const [selectedModelId, setSelectedModelId] = useState<string>('sensenova-6.8-flash-lite');
@@ -42,6 +49,49 @@ export const App: React.FC = () => {
       setStatusText('Thinking...');
     }
   }, [isThinking, isExecutingTool]);
+
+  // Setup message listener inside useEffect
+  useEffect(() => {
+    const handleMessage = (msg: any) => {
+      if (msg.type === 'UPDATE_TASK_STEP_STATUS' && taskPlan) {
+        setTaskPlan(prev => {
+          if (!prev) return prev;
+          const newSteps = prev.steps.map(s => s.id === msg.payload.stepId ? { ...s, status: msg.payload.status } : s);
+          return { ...prev, steps: newSteps };
+        });
+      }
+    };
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [taskPlan]);
+
+  const handleDecompose = async (instruction: string) => {
+    setIsDecomposing(true);
+    setStatusText('Memecah instruksi...');
+    
+    chrome.runtime.sendMessage({ type: 'DECOMPOSE_INSTRUCTION', payload: { instruction } }, (response) => {
+      setIsDecomposing(false);
+      if (response && response.plan) {
+        setTaskPlan(response.plan);
+        setStatusText('Menunggu persetujuan Anda.');
+      } else {
+        setStatusText('Gagal memecah instruksi.');
+      }
+    });
+  };
+
+  const handleExecutePlan = (plan: TaskPlan) => {
+    setStatusText('Mengeksekusi rencana terstruktur...');
+    chrome.runtime.sendMessage({ type: 'EXECUTE_PLAN', payload: { plan } });
+  };
+
+  const handleRevalidate = async (plan: TaskPlan) => {
+    return new Promise<boolean>((resolve) => {
+      chrome.runtime.sendMessage({ type: 'REVALIDATE_PLAN', payload: { plan } }, (response) => {
+        resolve(response?.valid ?? true);
+      });
+    });
+  };
 
   const [pendingTradeApproval, setPendingTradeApproval] = useState<{
     tradePlan: TradeDetails;
@@ -275,7 +325,14 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="vortexis-app w-full h-screen text-neutral-100 flex flex-col font-sans select-none overflow-hidden">
+    <div className="vortexis-app w-full h-screen text-neutral-100 flex flex-col font-sans select-none overflow-hidden relative">
+      {taskPlan ? (
+        <div className="absolute inset-0 z-50 bg-gray-900 overflow-y-auto">
+          <ReasoningTree plan={taskPlan} onExecute={handleExecutePlan} onRevalidate={handleRevalidate} />
+          <button className="absolute top-4 right-4 text-gray-400 hover:text-white" onClick={() => setTaskPlan(null)}>Tutup</button>
+        </div>
+      ) : null}
+      
       <ChatPanelContainer
         messages={messages}
         isThinking={isThinking}
@@ -284,7 +341,7 @@ export const App: React.FC = () => {
         statusText={statusText}
         onClearChat={handleClearChat}
         onEmergencyStop={handleStop}
-         pendingTradeApproval={pendingTradeApproval}
+        pendingTradeApproval={pendingTradeApproval}
         activity={activity}
       />
       <div className="relative px-3 w-full">

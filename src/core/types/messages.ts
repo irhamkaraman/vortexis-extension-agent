@@ -80,4 +80,8 @@ export type IPCMessage =
   | { type: 'IGNORE_PROACTIVE_PATTERN'; payload: { patternId: string } }
   | { type: 'SHOW_GUARDRAIL_ALERT'; payload: { result: any } }
   | { type: 'GUARDRAIL_RESPONSE'; payload: { proceed: boolean } }
-  | { type: 'CHECK_HEURISTIC_BOT'; payload?: Record<string, never> };
+  | { type: 'CHECK_HEURISTIC_BOT'; payload?: Record<string, never> }
+  | { type: 'DECOMPOSE_INSTRUCTION'; payload: { instruction: string } }
+  | { type: 'REVALIDATE_PLAN'; payload: { plan: any } }
+  | { type: 'EXECUTE_PLAN'; payload: { plan: any } }
+  | { type: 'UPDATE_TASK_STEP_STATUS'; payload: { stepId: string, status: string } };
