@@ -74,4 +74,7 @@ export type IPCMessage =
   | { type: 'OVERLAY_GRID_SHOW'; payload?: Record<string, never> }
   | { type: 'OVERLAY_GRID_HIDE'; payload?: Record<string, never> }
   | { type: 'OVERLAY_DESTROY_ALL'; payload?: Record<string, never> }
-  | { type: 'UPDATE_TAB_CONTEXT'; payload: { url: string; title: string; entities: any[] } };
+  | { type: 'UPDATE_TAB_CONTEXT'; payload: { url: string; title: string; entities: any[] } }
+  | { type: 'SHOW_PROACTIVE_TOAST'; payload: { pattern: any } }
+  | { type: 'ACCEPT_PROACTIVE_PATTERN'; payload: { pattern: any } }
+  | { type: 'IGNORE_PROACTIVE_PATTERN'; payload: { patternId: string } };

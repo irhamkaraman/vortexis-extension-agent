@@ -5,6 +5,7 @@ import { CanvasDrawingDriver } from '../modules/trading/CanvasDrawingDriver';
 import { OrderExecutionManager } from '../modules/trading/OrderExecutionManager';
 import { PageLockDriver } from '../modules/overlay/PageLockDriver';
 import { MutationTracker } from './MutationTracker';
+import { ToastNotificationDriver } from '../modules/overlay/ToastNotificationDriver';
 
 console.log('[VORTEXIS] Content Script loaded.');
 
@@ -153,7 +154,14 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
         break;
       }
 
+      case 'SHOW_PROACTIVE_TOAST': {
+        ToastNotificationDriver.showProactiveToast(message.payload.pattern);
+        sendResponse({ success: true });
+        break;
+      }
+
       default:
+        // Ignore unhandled
         break;
     }
   } catch (err: any) {

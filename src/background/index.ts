@@ -2,10 +2,14 @@ import { InteractiveElementInfo, IPCMessage } from '../core/types/messages';
 import { ChartVisionService } from '../modules/trading/ChartVisionService';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
 import { TabGraphManager } from '../modules/rag/TabGraphManager';
+import { ProactiveObserver } from '../modules/automation/ProactiveObserver';
 
 console.log('[VORTEXIS] Background Service Worker initialized.');
 
 export const tabGraphManager = new TabGraphManager();
+
+// Initialize proactive observer
+ProactiveObserver.init().catch(console.error);
 
 // Tab closing listener to remove from graph
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -21,6 +25,33 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, sender, sendResponse)
       message.payload.title,
       message.payload.entities
     );
+    if (sendResponse) sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.type === 'IGNORE_PROACTIVE_PATTERN') {
+    ProactiveObserver.ignorePattern(message.payload.patternId).catch(console.error);
+    if (sendResponse) sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'ACCEPT_PROACTIVE_PATTERN') {
+    const pattern = message.payload.pattern;
+    // Generate draft macro
+    const macro = {
+      id: `macro-proactive-${Date.now()}`,
+      domain: pattern.domains[0],
+      goalPattern: `Buka ${pattern.domains.join(', ')} secara otomatis`,
+      actions: pattern.domains.map((d: string) => ({
+        tool: 'switch_tab',
+        parameters: { url: `https://${d}` }
+      })),
+      createdAt: new Date().toISOString()
+    };
+    chrome.storage.local.set({ [macro.id]: macro }).then(() => {
+      // Optional: Open sidepanel so user can see it
+      chrome.action.openPopup();
+    });
     if (sendResponse) sendResponse({ success: true });
     return true;
   }
