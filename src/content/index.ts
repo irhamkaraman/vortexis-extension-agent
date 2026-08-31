@@ -6,6 +6,7 @@ import { OrderExecutionManager } from '../modules/trading/OrderExecutionManager'
 import { PageLockDriver } from '../modules/overlay/PageLockDriver';
 import { MutationTracker } from './MutationTracker';
 import { ToastNotificationDriver } from '../modules/overlay/ToastNotificationDriver';
+import { GuardrailAlertDriver } from '../modules/overlay/GuardrailAlertDriver';
 
 console.log('[VORTEXIS] Content Script loaded.');
 
@@ -157,6 +158,19 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, _sender, sendResponse
       case 'SHOW_PROACTIVE_TOAST': {
         ToastNotificationDriver.showProactiveToast(message.payload.pattern);
         sendResponse({ success: true });
+        break;
+      }
+
+      case 'SHOW_GUARDRAIL_ALERT': {
+        GuardrailAlertDriver.showGuardrailWarning(message.payload.result);
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'CHECK_HEURISTIC_BOT': {
+        const text = document.body.innerText.toLowerCase();
+        const hasWarning = ['automated access', 'scraping', 'bot ', 'terms of service'].some(keyword => text.includes(keyword));
+        sendResponse({ success: true, result: hasWarning });
         break;
       }
 

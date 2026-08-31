@@ -3,6 +3,7 @@ import { ChartVisionService } from '../modules/trading/ChartVisionService';
 import { AutonomousPlanner } from '../modules/agent/AutonomousPlanner';
 import { TabGraphManager } from '../modules/rag/TabGraphManager';
 import { ProactiveObserver } from '../modules/automation/ProactiveObserver';
+import { GuardrailManager } from '../modules/automation/GuardrailManager';
 
 console.log('[VORTEXIS] Background Service Worker initialized.');
 
@@ -49,9 +50,18 @@ chrome.runtime.onMessage.addListener((message: IPCMessage, sender, sendResponse)
       createdAt: new Date().toISOString()
     };
     chrome.storage.local.set({ [macro.id]: macro }).then(() => {
-      // Optional: Open sidepanel so user can see it
       chrome.action.openPopup();
     });
+    if (sendResponse) sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'GUARDRAIL_RESPONSE') {
+    if (message.payload.proceed && sender.tab?.url) {
+      const domain = new URL(sender.tab.url).hostname;
+      GuardrailManager.bypassDomain(domain);
+      // Optional: automatically retry the failed action here if we had an action queue
+    }
     if (sendResponse) sendResponse({ success: true });
     return true;
   }
@@ -210,6 +220,23 @@ export class BackgroundToolExecutor {
     if (!targetTabId) throw new Error('Tidak ada tab Chrome yang aktif.');
 
     await this.ensureContentScriptInjected(targetTabId);
+
+    const tab = await chrome.tabs.get(targetTabId);
+    if (tab.url) {
+      // Check heuristic
+      let heuristicWarning = false;
+      try {
+        const res = await this.sendMessageToTab(targetTabId, { type: 'CHECK_HEURISTIC_BOT' });
+        if (res && res.result) heuristicWarning = true;
+      } catch (e) {}
+
+      const guardrail = await GuardrailManager.checkGuardrails(tab.url, heuristicWarning);
+      if (guardrail.robotsDisallowed || guardrail.rateLimitExceeded || guardrail.heuristicWarning) {
+        // Tampilkan alert
+        await this.sendMessageToTab(targetTabId, { type: 'SHOW_GUARDRAIL_ALERT', payload: { result: guardrail } });
+        throw new Error('Ekstraksi ditahan oleh sistem Guardrail. Silakan periksa peringatan di layar Anda.');
+      }
+    }
 
     return await this.sendMessageToTab(targetTabId, {
       type: 'EXTRACT_STRUCTURED_DATA',
