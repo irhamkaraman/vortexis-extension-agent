@@ -296,11 +296,11 @@ export class BackgroundToolExecutor {
   }
 
   private async ensureContentScriptInjected(tabId: number): Promise<boolean> {
-    if (!chrome.scripting) return false;
+    if (!chrome.scripting) throw new Error('API Scripting tidak tersedia.');
 
     const tab = await chrome.tabs.get(tabId);
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
-      return false;
+      throw new Error(`Ekstensi tidak dapat berjalan di halaman sistem browser atau tab kosong (${tab.url || 'Unknown'}). Silakan buka website umum (seperti google.com) terlebih dahulu.`);
     }
 
     try {
@@ -309,8 +309,8 @@ export class BackgroundToolExecutor {
         files: ['src/content/index.js'],
       });
       return true;
-    } catch {
-      return false;
+    } catch (e: any) {
+      throw new Error(`Gagal menyuntikkan script: ${e.message}. Pastikan Anda berada di halaman web biasa dan coba muat ulang halaman (F5).`);
     }
   }
 
